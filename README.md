@@ -33,3 +33,21 @@ Proyek ini dibuat untuk tugas kelompok mata kuliah Backend Lanjut dengan Go, Fib
 | Autentikasi | JWT HS256, password di-hash dengan bcrypt |
 | Zona waktu | `Asia/Jakarta` (+07:00) |
 | Infrastruktur lokal | Docker Compose |
+
+## Struktur Proyek
+
+Arsitekturnya Clean Architecture tanpa controller/handler. Method service menerima `*fiber.Ctx` dan langsung menjadi endpoint.
+
+```
+main.go            wiring dependency dan menjalankan server
+route/             daftar route dan middleware per route
+middleware/        RequireAuth, RequireRole
+helper/            response, error, validator, JWT, password
+config/            baca environment, konfigurasi Fiber
+database/          koneksi PostgreSQL
+migrations/        skema database (001_init.sql)
+app/model/         struct request, response, dan entitas
+app/repository/    akses database (SQL)
+app/service/       aturan bisnis dan endpoint
+http/              berkas uji REST Client
+```
