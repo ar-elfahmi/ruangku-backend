@@ -63,6 +63,9 @@ func registerBookings(api fiber.Router, d Dependencies) {
 	requirePengelola := middleware.RequireRole(model.RolePengelola)
 
 	bookings := api.Group("/bookings", requireAuth)
+	// /mine harus didaftarkan sebelum route /:id apa pun.
+	bookings.Get("/mine", requirePeminjam, d.History.Mine)
+	bookings.Get("/", requirePengelola, d.History.ListAll)
 	bookings.Post("/", requirePeminjam, d.Booking.Create)
 	bookings.Patch("/:id/cancel", requirePeminjam, d.Booking.Cancel)
 	bookings.Patch("/:id/approve", requirePengelola, d.Booking.Approve)
