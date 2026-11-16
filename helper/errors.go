@@ -4,7 +4,7 @@ import "github.com/gofiber/fiber/v2"
 
 const messageInternal = "terjadi kesalahan pada server"
 
-// AppError adalah error HTTP yang diterjemahkan oleh error handler di config.NewApp.
+// AppError adalah error HTTP yang diterjemahkan menjadi response error oleh config.NewApp.
 type AppError struct {
 	Status  int
 	Message string
