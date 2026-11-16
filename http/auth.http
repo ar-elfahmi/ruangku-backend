@@ -1,0 +1,87 @@
+@baseUrl = http://localhost:8080/api/v1
+@adminEmail = admin@ruangku.local
+@adminPassword = admin12345
+@userEmail = andi@kampus.ac.id
+@userPassword = rahasia123
+
+### AU-01 register → 201
+# @name registerAndi
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "name": "Andi",
+  "email": "{{userEmail}}",
+  "password": "{{userPassword}}"
+}
+
+### AU-02 register the same email in upper case → 409
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "name": "Andi Lagi",
+  "email": "ANDI@KAMPUS.AC.ID",
+  "password": "rahasia123"
+}
+
+### AU-03 register with password "123" → 422
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "name": "Budi",
+  "email": "budi@kampus.ac.id",
+  "password": "123"
+}
+
+### AU-04 login → 200
+# @name loginAndi
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{userEmail}}",
+  "password": "{{userPassword}}"
+}
+
+### AU-05 login with the wrong password → 401
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{userEmail}}",
+  "password": "password-salah"
+}
+
+### AU-06 /auth/me without a token → 401
+GET {{baseUrl}}/auth/me
+
+### AU-07 admin promotes a user to pengelola → 200
+# @name loginAdmin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{adminEmail}}",
+  "password": "{{adminPassword}}"
+}
+
+###
+PATCH {{baseUrl}}/users/{{registerAndi.response.body.data.id}}/role
+Authorization: Bearer {{loginAdmin.response.body.data.access_token}}
+Content-Type: application/json
+
+{
+  "role": "pengelola"
+}
+
+### AU-08 peminjam calls change-role → 403
+# Token loginAndi diterbitkan sebelum AU-07, jadi masih membawa role peminjam.
+PATCH {{baseUrl}}/users/{{registerAndi.response.body.data.id}}/role
+Authorization: Bearer {{loginAndi.response.body.data.access_token}}
+Content-Type: application/json
+
+{
+  "role": "admin"
+}
