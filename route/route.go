@@ -29,6 +29,7 @@ func Register(app *fiber.App, d Dependencies) {
 	api.Get("/health", health(d.Pool))
 
 	registerAuth(api, d)
+	registerRooms(api, d)
 }
 
 func registerAuth(api fiber.Router, d Dependencies) {
@@ -40,6 +41,19 @@ func registerAuth(api fiber.Router, d Dependencies) {
 	auth.Get("/me", requireAuth, d.Auth.Me)
 
 	api.Patch("/users/:id/role", requireAuth, middleware.RequireRole(model.RoleAdmin), d.User.ChangeRole)
+}
+
+func registerRooms(api fiber.Router, d Dependencies) {
+	requireAuth := middleware.RequireAuth(d.JWT)
+	requireAdmin := middleware.RequireRole(model.RoleAdmin)
+
+	rooms := api.Group("/rooms", requireAuth)
+	rooms.Get("/", d.Room.List)
+	rooms.Get("/:id", d.Room.Get)
+	rooms.Get("/:id/availability", d.Room.Availability)
+	rooms.Post("/", requireAdmin, d.Room.Create)
+	rooms.Put("/:id", requireAdmin, d.Room.Update)
+	rooms.Delete("/:id", requireAdmin, d.Room.Delete)
 }
 
 func health(pool *pgxpool.Pool) fiber.Handler {
