@@ -6,6 +6,7 @@ import (
 	"ruangku-backend/app/model"
 )
 
+const userColumns = "id, name, email, password_hash, role, created_at"
 type userRepository struct {
 	db DBTX
 }
@@ -15,7 +16,21 @@ func NewUserRepository(db DBTX) UserRepository {
 }
 
 func (r *userRepository) Create(ctx context.Context, u model.User) (model.User, error) {
-	return model.User{}, ErrNotImplemented
+	const query = `
+		INSERT INTO users (name, email, password_hash, role)
+		VALUES ($1, $2, $3, $4)
+		RETURNING ` + userColumns
+
+	var created model.User
+	err := r.db.QueryRow(ctx, query, u.Name, u.Email, u.PasswordHash, u.Role).Scan(
+		&created.ID,
+		&created.Name,
+		&created.Email,
+		&created.PasswordHash,
+		&created.Role,
+		&created.CreatedAt,
+	)
+	return created, TranslateError(err)
 }
 
 func (r *userRepository) FindByEmail(ctx context.Context, email string) (model.User, error) {
