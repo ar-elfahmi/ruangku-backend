@@ -7,6 +7,7 @@ import (
 	"ruangku-backend/app/model"
 	"ruangku-backend/app/service"
 	"ruangku-backend/helper"
+	"ruangku-backend/middleware"
 )
 
 // Dependencies berisi semua yang dibutuhkan route. Service bertipe interface
@@ -26,6 +27,19 @@ func Register(app *fiber.App, d Dependencies) {
 	api := app.Group("/api/v1")
 
 	api.Get("/health", health(d.Pool))
+
+	registerAuth(api, d)
+}
+
+func registerAuth(api fiber.Router, d Dependencies) {
+	requireAuth := middleware.RequireAuth(d.JWT)
+
+	auth := api.Group("/auth")
+	auth.Post("/register", d.Auth.Register)
+	auth.Post("/login", d.Auth.Login)
+	auth.Get("/me", requireAuth, d.Auth.Me)
+
+	api.Patch("/users/:id/role", requireAuth, middleware.RequireRole(model.RoleAdmin), d.User.ChangeRole)
 }
 
 func health(pool *pgxpool.Pool) fiber.Handler {
