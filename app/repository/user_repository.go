@@ -64,7 +64,18 @@ func (r *userRepository) FindByID(ctx context.Context, id int) (model.User, erro
 }
 
 func (r *userRepository) UpdateRole(ctx context.Context, id int, role string) (model.User, error) {
-	return model.User{}, ErrNotImplemented
+	const query = `UPDATE users SET role = $2 WHERE id = $1 RETURNING ` + userColumns
+
+	var user model.User
+	err := r.db.QueryRow(ctx, query, id, role).Scan(
+		&user.ID,
+		&user.Name,
+		&user.Email,
+		&user.PasswordHash,
+		&user.Role,
+		&user.CreatedAt,
+	)
+	return user, TranslateError(err)
 }
 
 var _ UserRepository = (*userRepository)(nil)
