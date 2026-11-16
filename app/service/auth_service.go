@@ -110,7 +110,34 @@ func (s *authService) Me(c *fiber.Ctx) error {
 }
 
 func (s *authService) EnsureAdmin(ctx context.Context, name, email, password string) error {
-	return nil
+	email = NormalizeEmail(email)
+	if email == "" || password == "" {
+		return nil
+	}
+
+	_, err := s.users.FindByEmail(ctx, email)
+	switch {
+	case err == nil:
+		return nil
+	case !errors.Is(err, repository.ErrNotFound):
+		return err
+	}
+
+	hash, err := helper.HashPassword(password)
+	if err != nil {
+		return err
+	}
+
+	_, err = s.users.Create(ctx, model.User{
+		Name:         name,
+		Email:        email,
+		PasswordHash: hash,
+		Role:         model.RoleAdmin,
+	})
+	if errors.Is(err, repository.ErrDuplicate) {
+		return nil
+	}
+	return err
 }
 
 var _ AuthService = (*authService)(nil)
