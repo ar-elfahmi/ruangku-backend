@@ -195,3 +195,13 @@ Saat server start, akun admin dibuat dari `ADMIN_*` di `.env` bila belum ada. Ni
 | `admin@ruangku.local` | `admin12345` |
 
 Ganti password ini bila aplikasi dipakai di luar lingkungan belajar.
+
+## Cara Menguji
+
+Buka berkas di folder `http/` dengan ekstensi [REST Client](https://marketplace.visualstudio.com/items?itemName=humao.rest-client) di VS Code, lalu jalankan request satu per satu. Tiap berkas dimiliki anggota yang mengerjakan fiturnya (`auth.http`, `rooms.http`, `bookings.http`, `history.http`).
+
+Unit test aturan bisnis dan helper:
+
+```bash
+go test ./...
+```
