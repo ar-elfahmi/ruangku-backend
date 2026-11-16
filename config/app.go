@@ -10,14 +10,14 @@ import (
 	"ruangku-backend/helper"
 )
 
-// NewApp membuat aplikasi Fiber dengan error handler yang menulis envelope error.
+// NewApp membuat aplikasi Fiber dengan penanganan error yang menulis envelope error.
 func NewApp() *fiber.App {
 	return fiber.New(fiber.Config{
-		ErrorHandler: errorHandler,
+		ErrorHandler: writeError,
 	})
 }
 
-func errorHandler(c *fiber.Ctx, err error) error {
+func writeError(c *fiber.Ctx, err error) error {
 	var appErr *helper.AppError
 	if !errors.As(err, &appErr) {
 		appErr = toAppError(err)
