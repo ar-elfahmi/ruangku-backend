@@ -117,3 +117,40 @@ Aturan penting di level database:
 | `approved` ke `cancelled` | peminjam pemilik |
 
 Perubahan lain ditolak dengan 409.
+
+## Daftar Endpoint
+
+Semua endpoint berada di bawah `/api/v1`. Endpoint selain `/health`, `/auth/register`, dan `/auth/login` membutuhkan header `Authorization: Bearer <token>`.
+
+| Method | Path | Akses | Pemilik |
+|---|---|---|---|
+| GET | `/health` | publik | A |
+| POST | `/auth/register` | publik | D |
+| POST | `/auth/login` | publik | D |
+| GET | `/auth/me` | semua peran | D |
+| PATCH | `/users/:id/role` | admin | D |
+| GET | `/rooms` | semua peran | C |
+| GET | `/rooms/:id` | semua peran | C |
+| POST | `/rooms` | admin | C |
+| PUT | `/rooms/:id` | admin | C |
+| DELETE | `/rooms/:id` | admin | C |
+| GET | `/rooms/:id/availability?date=YYYY-MM-DD` | semua peran | C |
+| POST | `/bookings` | peminjam | B |
+| PATCH | `/bookings/:id/cancel` | peminjam pemilik | B |
+| PATCH | `/bookings/:id/approve` | pengelola | B |
+| PATCH | `/bookings/:id/reject` | pengelola | B |
+| GET | `/bookings/:id/logs` | pemilik atau pengelola | B |
+| GET | `/bookings/mine?status=` | peminjam | D |
+| GET | `/bookings?status=&room_id=` | pengelola | D |
+
+Contoh response sukses dan error:
+
+```json
+{ "success": true, "message": "ruang berhasil dibuat", "data": { "id": 1, "code": "LAB-01" } }
+```
+
+```json
+{ "success": false, "message": "data tidak valid", "errors": { "capacity": "wajib diisi" } }
+```
+
+Response `204` tidak memiliki body.
