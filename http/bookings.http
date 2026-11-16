@@ -1,0 +1,158 @@
+@baseUrl = http://localhost:8080/api/v1
+@adminToken = {{loginAdmin.response.body.data.access_token}}
+@andiToken = {{loginAndi.response.body.data.access_token}}
+@budiToken = {{loginBudi.response.body.data.access_token}}
+@pengelolaToken = {{loginPengelola.response.body.data.access_token}}
+@roomId = {{createRoom.response.body.data.id}}
+@bookingId = {{createBooking.response.body.data.id}}
+
+# Jalankan dari atas ke bawah pada database baru:
+#   docker compose down -v && docker compose up -d
+# Rentang waktu memakai tahun 2030 supaya selalu di masa depan.
+
+### Setup: login admin
+# @name loginAdmin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "email": "admin@ruangku.local", "password": "admin12345" }
+
+### Setup: register peminjam Andi
+# @name registerAndi
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{ "name": "Andi", "email": "andi.bk@kampus.ac.id", "password": "rahasia123" }
+
+### Setup: register peminjam Budi
+# @name registerBudi
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{ "name": "Budi", "email": "budi.bk@kampus.ac.id", "password": "rahasia123" }
+
+### Setup: register calon pengelola Citra
+# @name registerCitra
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{ "name": "Citra", "email": "citra.bk@kampus.ac.id", "password": "rahasia123" }
+
+### Setup: admin menjadikan Citra pengelola
+PATCH {{baseUrl}}/users/{{registerCitra.response.body.data.id}}/role
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{ "role": "pengelola" }
+
+### Setup: login Andi
+# @name loginAndi
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "email": "andi.bk@kampus.ac.id", "password": "rahasia123" }
+
+### Setup: login Budi
+# @name loginBudi
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "email": "budi.bk@kampus.ac.id", "password": "rahasia123" }
+
+### Setup: login Citra (setelah dipromosikan, agar token membawa role pengelola)
+# @name loginPengelola
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "email": "citra.bk@kampus.ac.id", "password": "rahasia123" }
+
+### Setup: admin membuat ruang
+# @name createRoom
+POST {{baseUrl}}/rooms
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{ "code": "bk-room-01", "name": "Ruang Uji Booking", "building": "Gedung C", "capacity": 30 }
+
+### BK-01 create booking 10:00-12:00 → 201, status pending
+# @name createBooking
+POST {{baseUrl}}/bookings
+Authorization: Bearer {{andiToken}}
+Content-Type: application/json
+
+{
+  "room_id": {{roomId}},
+  "purpose": "Rapat BEM",
+  "start_time": "2030-12-01T10:00:00+07:00",
+  "end_time": "2030-12-01T12:00:00+07:00"
+}
+
+### BK-02 end before start → 400
+POST {{baseUrl}}/bookings
+Authorization: Bearer {{andiToken}}
+Content-Type: application/json
+
+{
+  "room_id": {{roomId}},
+  "purpose": "Waktu terbalik",
+  "start_time": "2030-12-02T12:00:00+07:00",
+  "end_time": "2030-12-02T10:00:00+07:00"
+}
+
+### BK-03 back-to-back slot 12:00-14:00 → 201
+POST {{baseUrl}}/bookings
+Authorization: Bearer {{budiToken}}
+Content-Type: application/json
+
+{
+  "room_id": {{roomId}},
+  "purpose": "Kuliah tamu",
+  "start_time": "2030-12-01T12:00:00+07:00",
+  "end_time": "2030-12-01T14:00:00+07:00"
+}
+
+### BK-04 overlapping slot 11:00-13:00 → 409
+POST {{baseUrl}}/bookings
+Authorization: Bearer {{budiToken}}
+Content-Type: application/json
+
+{
+  "room_id": {{roomId}},
+  "purpose": "Bentrok",
+  "start_time": "2030-12-01T11:00:00+07:00",
+  "end_time": "2030-12-01T13:00:00+07:00"
+}
+
+### BK-05 approve as peminjam → 403
+PATCH {{baseUrl}}/bookings/{{bookingId}}/approve
+Authorization: Bearer {{andiToken}}
+
+### BK-06 approve as pengelola → 200, status approved
+PATCH {{baseUrl}}/bookings/{{bookingId}}/approve
+Authorization: Bearer {{pengelolaToken}}
+Content-Type: application/json
+
+{ "note": "Disetujui untuk kegiatan resmi" }
+
+### BK-07 cancel someone else's booking → 403
+PATCH {{baseUrl}}/bookings/{{bookingId}}/cancel
+Authorization: Bearer {{budiToken}}
+
+### BK-08 cancel own booking → 200, status cancelled
+PATCH {{baseUrl}}/bookings/{{bookingId}}/cancel
+Authorization: Bearer {{andiToken}}
+Content-Type: application/json
+
+{ "note": "Acara dibatalkan" }
+
+### BK-09 approve the cancelled booking → 409, status unchanged
+PATCH {{baseUrl}}/bookings/{{bookingId}}/approve
+Authorization: Bearer {{pengelolaToken}}
+
+### BK-10 logs of own booking → 200, trail null→pending→approved→cancelled
+GET {{baseUrl}}/bookings/{{bookingId}}/logs
+Authorization: Bearer {{andiToken}}
+
+### BK-11 logs of someone else's booking → 403
+GET {{baseUrl}}/bookings/{{bookingId}}/logs
+Authorization: Bearer {{budiToken}}

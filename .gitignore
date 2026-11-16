@@ -10,3 +10,5 @@ coverage.out
 # Editor
 .idea/
 .vscode/
+
+/docs
