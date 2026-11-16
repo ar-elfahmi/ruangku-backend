@@ -1,0 +1,17 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ruangku-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ruangku
+      POSTGRES_USER: ruangku
+      POSTGRES_PASSWORD: ruangku
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./migrations:/docker-entrypoint-initdb.d
+      - ruangku-pgdata:/var/lib/postgresql/data
+
+volumes:
+  ruangku-pgdata:
