@@ -74,7 +74,6 @@ func (s *authService) Login(c *fiber.Ctx) error {
 		return helper.Internal(err)
 	}
 
-	// Email tidak dikenal dan password salah sengaja memakai pesan yang sama.
 	if !helper.CheckPassword(user.PasswordHash, req.Password) {
 		return helper.Unauthorized(messageWrongCredentials)
 	}
@@ -91,7 +90,23 @@ func (s *authService) Login(c *fiber.Ctx) error {
 }
 
 func (s *authService) Me(c *fiber.Ctx) error {
-	return helper.NotImplemented("fitur belum tersedia")
+	ctx, cancel := helper.RequestContext(c)
+	defer cancel()
+
+	authUser, ok := helper.CurrentUser(c)
+	if !ok {
+		return helper.Unauthorized(messageInvalidToken)
+	}
+
+	user, err := s.users.FindByID(ctx, authUser.ID)
+	switch {
+	case errors.Is(err, repository.ErrNotFound):
+		return helper.Unauthorized(messageInvalidToken)
+	case err != nil:
+		return helper.Internal(err)
+	}
+
+	return helper.Success(c, fiber.StatusOK, "profil berhasil diambil", user)
 }
 
 func (s *authService) EnsureAdmin(ctx context.Context, name, email, password string) error {
