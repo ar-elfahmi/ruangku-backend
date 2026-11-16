@@ -205,3 +205,12 @@ Unit test aturan bisnis dan helper:
 ```bash
 go test ./...
 ```
+
+## Anggota Tim
+
+| Anggota | Peran | Tanggung jawab |
+|---|---|---|
+| A (ar-elfahmi) | Git Master | Setup repo, fondasi, kontrak (skema, model, interface), wiring route |
+| B | Developer | Siklus hidup peminjaman dan log status |
+| C | Developer | Manajemen ruang dan ketersediaan |
+| D | Developer | Autentikasi, pengguna, dan riwayat peminjaman, serta dokumentasi |
