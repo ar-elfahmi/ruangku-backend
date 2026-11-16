@@ -49,7 +49,18 @@ func (r *userRepository) FindByEmail(ctx context.Context, email string) (model.U
 }
 
 func (r *userRepository) FindByID(ctx context.Context, id int) (model.User, error) {
-	return model.User{}, ErrNotImplemented
+	const query = `SELECT ` + userColumns + ` FROM users WHERE id = $1`
+
+	var user model.User
+	err := r.db.QueryRow(ctx, query, id).Scan(
+		&user.ID,
+		&user.Name,
+		&user.Email,
+		&user.PasswordHash,
+		&user.Role,
+		&user.CreatedAt,
+	)
+	return user, TranslateError(err)
 }
 
 func (r *userRepository) UpdateRole(ctx context.Context, id int, role string) (model.User, error) {
