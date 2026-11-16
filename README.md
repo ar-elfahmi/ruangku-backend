@@ -154,3 +154,44 @@ Contoh response sukses dan error:
 ```
 
 Response `204` tidak memiliki body.
+
+## Cara Menjalankan
+
+Prasyarat: Go 1.26 dan Docker.
+
+```bash
+cp .env.example .env
+docker compose up -d
+go run .
+```
+
+Di PowerShell, ganti perintah pertama dengan `Copy-Item .env.example .env`.
+
+Server berjalan di `http://localhost:8080`. Cek dengan:
+
+```bash
+curl http://localhost:8080/api/v1/health
+```
+
+Untuk mengosongkan database dan menjalankan ulang skema: `docker compose down -v`, lalu `docker compose up -d`.
+
+### Variabel environment
+
+| Key | Contoh | Keterangan |
+|---|---|---|
+| `APP_PORT` | `8080` | Port server |
+| `APP_TIMEZONE` | `Asia/Jakarta` | Zona waktu aplikasi |
+| `DB_URL` | `postgres://ruangku:ruangku@localhost:5432/ruangku?sslmode=disable` | Koneksi PostgreSQL |
+| `JWT_SECRET` | minimal 32 karakter | Kunci penandatangan token. Aplikasi menolak start bila lebih pendek. |
+| `JWT_TTL_MINUTES` | `60` | Masa berlaku token |
+| `ADMIN_NAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` | lihat `.env.example` | Akun admin awal |
+
+### Akun admin bawaan
+
+Saat server start, akun admin dibuat dari `ADMIN_*` di `.env` bila belum ada. Nilai bawaan dari `.env.example`:
+
+| Email | Password |
+|---|---|
+| `admin@ruangku.local` | `admin12345` |
+
+Ganti password ini bila aplikasi dipakai di luar lingkungan belajar.
