@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
@@ -24,6 +25,21 @@ func RequireAuth(jwt *helper.JWTManager) fiber.Handler {
 		}
 
 		c.Locals(helper.UserLocalsKey, user)
+		return c.Next()
+	}
+}
+
+// RequireRole harus dipasang setelah RequireAuth. User dengan role di luar
+// daftar mendapat 403.
+func RequireRole(roles ...string) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		user, ok := helper.CurrentUser(c)
+		if !ok {
+			return helper.Unauthorized(messageInvalidToken)
+		}
+		if !slices.Contains(roles, user.Role) {
+			return helper.Forbidden("akses ditolak")
+		}
 		return c.Next()
 	}
 }
