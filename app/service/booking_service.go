@@ -17,6 +17,7 @@ const (
 	messageOverlap         = "ruang sudah dipesan pada jam tersebut"
 	messageForbidden       = "akses ditolak"
 	messageInvalidToken    = "token tidak valid atau sudah kedaluwarsa"
+	messageWrongCredentials = "email atau password salah"
 )
 
 type bookingService struct {

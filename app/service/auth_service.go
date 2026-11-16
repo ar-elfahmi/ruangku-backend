@@ -37,7 +37,6 @@ func (s *authService) Register(c *fiber.Ctx) error {
 		return helper.Internal(err)
 	}
 
-	// Role tidak pernah dibaca dari body: registrasi selalu menjadi peminjam.
 	user := model.User{
 		Name:         req.Name,
 		Email:        NormalizeEmail(req.Email),
@@ -56,7 +55,39 @@ func (s *authService) Register(c *fiber.Ctx) error {
 }
 
 func (s *authService) Login(c *fiber.Ctx) error {
-	return helper.NotImplemented("fitur belum tersedia")
+	ctx, cancel := helper.RequestContext(c)
+	defer cancel()
+
+	var req model.LoginRequest
+	if err := c.BodyParser(&req); err != nil {
+		return helper.BadRequest("body request tidak valid")
+	}
+	if errs := helper.ValidateStruct(req); errs != nil {
+		return helper.Validation(errs)
+	}
+
+	user, err := s.users.FindByEmail(ctx, NormalizeEmail(req.Email))
+	switch {
+	case errors.Is(err, repository.ErrNotFound):
+		return helper.Unauthorized(messageWrongCredentials)
+	case err != nil:
+		return helper.Internal(err)
+	}
+
+	// Email tidak dikenal dan password salah sengaja memakai pesan yang sama.
+	if !helper.CheckPassword(user.PasswordHash, req.Password) {
+		return helper.Unauthorized(messageWrongCredentials)
+	}
+
+	token, err := s.jwt.Generate(user.ID, user.Email, user.Role)
+	if err != nil {
+		return helper.Internal(err)
+	}
+
+	return helper.Success(c, fiber.StatusOK, "login berhasil", model.TokenResponse{
+		AccessToken: token,
+		ExpiresIn:   s.jwt.TTLSeconds(),
+	})
 }
 
 func (s *authService) Me(c *fiber.Ctx) error {
