@@ -1,10 +1,22 @@
 package service
 
 import (
+	"errors"
+	"time"
+
 	"github.com/gofiber/fiber/v2"
 
+	"ruangku-backend/app/model"
 	"ruangku-backend/app/repository"
 	"ruangku-backend/helper"
+)
+
+const (
+	messageBookingNotFound = "peminjaman tidak ditemukan"
+	messageStatusConflict  = "status peminjaman tidak dapat diubah"
+	messageOverlap         = "ruang sudah dipesan pada jam tersebut"
+	messageForbidden       = "akses ditolak"
+	messageInvalidToken    = "token tidak valid atau sudah kedaluwarsa"
 )
 
 type bookingService struct {
@@ -18,23 +30,176 @@ func NewBookingService(b repository.BookingRepository, r repository.RoomReposito
 }
 
 func (s *bookingService) Create(c *fiber.Ctx) error {
-	return helper.NotImplemented("fitur belum tersedia")
+	ctx, cancel := helper.RequestContext(c)
+	defer cancel()
+
+	var req model.CreateBookingRequest
+	if err := c.BodyParser(&req); err != nil {
+		return helper.BadRequest("body request tidak valid")
+	}
+	if errs := helper.ValidateStruct(req); errs != nil {
+		return helper.Validation(errs)
+	}
+	if err := ValidateBookingWindow(req.StartTime, req.EndTime, time.Now()); err != nil {
+		return helper.BadRequest(err.Error())
+	}
+
+	user, ok := helper.CurrentUser(c)
+	if !ok {
+		return helper.Unauthorized(messageInvalidToken)
+	}
+
+	room, err := s.rooms.FindByID(ctx, req.RoomID)
+	switch {
+	case errors.Is(err, repository.ErrNotFound):
+		return helper.NotFound("ruang tidak ditemukan")
+	case err != nil:
+		return helper.Internal(err)
+	case !room.IsActive:
+		return helper.BadRequest("ruang tidak aktif")
+	}
+
+	var created model.Booking
+	err = s.tx.Do(ctx, func(tx repository.DBTX) error {
+		repo := s.bookings.WithTx(tx)
+		var err error
+		created, err = repo.Create(ctx, model.Booking{
+			UserID:    user.ID,
+			RoomID:    req.RoomID,
+			Purpose:   req.Purpose,
+			StartTime: req.StartTime,
+			EndTime:   req.EndTime,
+		})
+		if err != nil {
+			return err
+		}
+		return repo.InsertLog(ctx, model.BookingLog{
+			BookingID: created.ID,
+			ActorID:   user.ID,
+			ToStatus:  model.StatusPending,
+		})
+	})
+	switch {
+	case errors.Is(err, repository.ErrOverlap):
+		return helper.Conflict(messageOverlap)
+	case err != nil:
+		return helper.Internal(err)
+	}
+	return helper.Created(c, "peminjaman berhasil diajukan", created, "")
 }
 
 func (s *bookingService) Cancel(c *fiber.Ctx) error {
-	return helper.NotImplemented("fitur belum tersedia")
+	return s.changeStatus(c, model.StatusCancelled, "peminjaman berhasil dibatalkan")
 }
 
 func (s *bookingService) Approve(c *fiber.Ctx) error {
-	return helper.NotImplemented("fitur belum tersedia")
+	return s.changeStatus(c, model.StatusApproved, "peminjaman berhasil disetujui")
 }
 
 func (s *bookingService) Reject(c *fiber.Ctx) error {
-	return helper.NotImplemented("fitur belum tersedia")
+	return s.changeStatus(c, model.StatusRejected, "peminjaman berhasil ditolak")
+}
+
+// changeStatus dipakai bersama oleh Cancel, Approve, dan Reject karena
+// alurnya identik; hanya status tujuan dan pesan sukses yang berbeda.
+func (s *bookingService) changeStatus(c *fiber.Ctx, target, successMessage string) error {
+	ctx, cancel := helper.RequestContext(c)
+	defer cancel()
+
+	id, ok := helper.ParamID(c, "id")
+	if !ok {
+		return helper.BadRequest("id tidak valid")
+	}
+
+	// Body opsional; BodyParser gagal pada body kosong.
+	var req model.StatusChangeRequest
+	if len(c.Body()) > 0 {
+		if err := c.BodyParser(&req); err != nil {
+			return helper.BadRequest("body request tidak valid")
+		}
+	}
+	if errs := helper.ValidateStruct(req); errs != nil {
+		return helper.Validation(errs)
+	}
+
+	user, ok := helper.CurrentUser(c)
+	if !ok {
+		return helper.Unauthorized(messageInvalidToken)
+	}
+
+	booking, err := s.bookings.FindByID(ctx, id)
+	switch {
+	case errors.Is(err, repository.ErrNotFound):
+		return helper.NotFound(messageBookingNotFound)
+	case err != nil:
+		return helper.Internal(err)
+	}
+
+	// 403 diperiksa sebelum 409 agar peran/kepemilikan yang salah tidak
+	// membocorkan status booking milik orang lain.
+	isOwner := booking.UserID == user.ID
+	if !CanActOn(target, user.Role, isOwner) {
+		return helper.Forbidden(messageForbidden)
+	}
+	if !CanTransition(booking.Status, target, user.Role, isOwner) {
+		return helper.Conflict(messageStatusConflict)
+	}
+
+	var updated model.Booking
+	err = s.tx.Do(ctx, func(tx repository.DBTX) error {
+		repo := s.bookings.WithTx(tx)
+		var err error
+		updated, err = repo.UpdateStatus(ctx, id, booking.Status, target)
+		if err != nil {
+			return err
+		}
+		from := booking.Status
+		return repo.InsertLog(ctx, model.BookingLog{
+			BookingID:  id,
+			ActorID:    user.ID,
+			FromStatus: &from,
+			ToStatus:   target,
+			Note:       req.Note,
+		})
+	})
+	switch {
+	case errors.Is(err, repository.ErrConflict):
+		return helper.Conflict(messageStatusConflict)
+	case err != nil:
+		return helper.Internal(err)
+	}
+	return helper.Success(c, fiber.StatusOK, successMessage, updated)
 }
 
 func (s *bookingService) Logs(c *fiber.Ctx) error {
-	return helper.NotImplemented("fitur belum tersedia")
+	ctx, cancel := helper.RequestContext(c)
+	defer cancel()
+
+	id, ok := helper.ParamID(c, "id")
+	if !ok {
+		return helper.BadRequest("id tidak valid")
+	}
+	user, ok := helper.CurrentUser(c)
+	if !ok {
+		return helper.Unauthorized(messageInvalidToken)
+	}
+
+	booking, err := s.bookings.FindByID(ctx, id)
+	switch {
+	case errors.Is(err, repository.ErrNotFound):
+		return helper.NotFound(messageBookingNotFound)
+	case err != nil:
+		return helper.Internal(err)
+	}
+	if booking.UserID != user.ID && user.Role != model.RolePengelola {
+		return helper.Forbidden(messageForbidden)
+	}
+
+	logs, err := s.bookings.FindLogs(ctx, id)
+	if err != nil {
+		return helper.Internal(err)
+	}
+	return helper.Success(c, fiber.StatusOK, "riwayat status peminjaman berhasil diambil", logs)
 }
 
 var _ BookingService = (*bookingService)(nil)
