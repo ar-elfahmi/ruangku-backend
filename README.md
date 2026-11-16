@@ -22,3 +22,14 @@ Proyek ini dibuat untuk tugas kelompok mata kuliah Backend Lanjut dengan Go, Fib
 - Log setiap perubahan status, ditulis dalam transaksi yang sama dengan perubahannya.
 - Riwayat peminjaman milik sendiri dan daftar seluruh peminjaman dengan filter.
 - Format response seragam untuk sukses dan error.
+
+## Teknologi
+
+| Komponen | Pilihan |
+|---|---|
+| Bahasa | Go 1.26 |
+| Web framework | Fiber v2 |
+| Database | PostgreSQL 16 (driver pgx v5) |
+| Autentikasi | JWT HS256, password di-hash dengan bcrypt |
+| Zona waktu | `Asia/Jakarta` (+07:00) |
+| Infrastruktur lokal | Docker Compose |
