@@ -30,6 +30,7 @@ func Register(app *fiber.App, d Dependencies) {
 
 	registerAuth(api, d)
 	registerRooms(api, d)
+	registerBookings(api, d)
 }
 
 func registerAuth(api fiber.Router, d Dependencies) {
@@ -54,6 +55,19 @@ func registerRooms(api fiber.Router, d Dependencies) {
 	rooms.Post("/", requireAdmin, d.Room.Create)
 	rooms.Put("/:id", requireAdmin, d.Room.Update)
 	rooms.Delete("/:id", requireAdmin, d.Room.Delete)
+}
+
+func registerBookings(api fiber.Router, d Dependencies) {
+	requireAuth := middleware.RequireAuth(d.JWT)
+	requirePeminjam := middleware.RequireRole(model.RolePeminjam)
+	requirePengelola := middleware.RequireRole(model.RolePengelola)
+
+	bookings := api.Group("/bookings", requireAuth)
+	bookings.Post("/", requirePeminjam, d.Booking.Create)
+	bookings.Patch("/:id/cancel", requirePeminjam, d.Booking.Cancel)
+	bookings.Patch("/:id/approve", requirePengelola, d.Booking.Approve)
+	bookings.Patch("/:id/reject", requirePengelola, d.Booking.Reject)
+	bookings.Get("/:id/logs", d.Booking.Logs)
 }
 
 func health(pool *pgxpool.Pool) fiber.Handler {
