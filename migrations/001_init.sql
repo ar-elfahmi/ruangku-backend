@@ -52,3 +52,19 @@ CREATE TABLE bookings (
 );
 
 CREATE INDEX bookings_user_id_idx ON bookings (user_id);
+
+CREATE TABLE booking_logs (
+    id          SERIAL       PRIMARY KEY,
+    booking_id  INT          NOT NULL,
+    actor_id    INT          NOT NULL,
+    from_status VARCHAR(20),
+    to_status   VARCHAR(20)  NOT NULL,
+    note        VARCHAR(255) NOT NULL DEFAULT '',
+    created_at  TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    CONSTRAINT booking_logs_booking_id_fkey FOREIGN KEY (booking_id) REFERENCES bookings (id) ON DELETE CASCADE,
+    CONSTRAINT booking_logs_actor_id_fkey FOREIGN KEY (actor_id) REFERENCES users (id) ON DELETE RESTRICT,
+    CONSTRAINT booking_logs_from_status_check CHECK (from_status IN ('pending', 'approved', 'rejected', 'cancelled')),
+    CONSTRAINT booking_logs_to_status_check CHECK (to_status IN ('pending', 'approved', 'rejected', 'cancelled'))
+);
+
+CREATE INDEX booking_logs_booking_id_idx ON booking_logs (booking_id);
