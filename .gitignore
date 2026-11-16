@@ -1,0 +1,12 @@
+# Env
+.env
+
+# Build
+*.exe
+/bin/
+/tmp/
+coverage.out
+
+# Editor
+.idea/
+.vscode/
