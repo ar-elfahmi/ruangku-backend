@@ -1,8 +1,11 @@
 package service
 
 import (
+	"errors"
+
 	"github.com/gofiber/fiber/v2"
 
+	"ruangku-backend/app/model"
 	"ruangku-backend/app/repository"
 	"ruangku-backend/helper"
 )
@@ -16,7 +19,31 @@ func NewUserService(u repository.UserRepository) UserService {
 }
 
 func (s *userService) ChangeRole(c *fiber.Ctx) error {
-	return helper.NotImplemented("fitur belum tersedia")
+	ctx, cancel := helper.RequestContext(c)
+	defer cancel()
+
+	id, ok := helper.ParamID(c, "id")
+	if !ok {
+		return helper.BadRequest("id tidak valid")
+	}
+
+	var req model.ChangeRoleRequest
+	if err := c.BodyParser(&req); err != nil {
+		return helper.BadRequest("body request tidak valid")
+	}
+	if errs := helper.ValidateStruct(req); errs != nil {
+		return helper.Validation(errs)
+	}
+
+	user, err := s.users.UpdateRole(ctx, id, req.Role)
+	switch {
+	case errors.Is(err, repository.ErrNotFound):
+		return helper.NotFound("user tidak ditemukan")
+	case err != nil:
+		return helper.Internal(err)
+	}
+
+	return helper.Success(c, fiber.StatusOK, "role user berhasil diubah", user)
 }
 
 var _ UserService = (*userService)(nil)
