@@ -1,0 +1,108 @@
+@baseUrl = http://localhost:8080/api/v1
+@adminToken = {{loginAdmin.response.body.data.access_token}}
+@andiToken = {{loginAndi.response.body.data.access_token}}
+@roomId = {{createRoom.response.body.data.id}}
+@room2Id = {{createRoom2.response.body.data.id}}
+
+# Jalankan dari atas ke bawah pada database baru:
+#   docker compose down -v && docker compose up -d
+
+### Setup: login admin
+# @name loginAdmin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "email": "admin@ruangku.local", "password": "admin12345" }
+
+### Setup: register peminjam Andi
+# @name registerAndi
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{ "name": "Andi", "email": "andi.rm@kampus.ac.id", "password": "rahasia123" }
+
+### Setup: login Andi
+# @name loginAndi
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "email": "andi.rm@kampus.ac.id", "password": "rahasia123" }
+
+### RM-01 list rooms as peminjam → 200, empty list on fresh database
+GET {{baseUrl}}/rooms
+Authorization: Bearer {{andiToken}}
+
+### RM-02 create room as peminjam → 403
+POST {{baseUrl}}/rooms
+Authorization: Bearer {{andiToken}}
+Content-Type: application/json
+
+{ "code": "lab-01", "name": "Lab Komputer 1", "building": "Gedung C", "capacity": 40 }
+
+### RM-03 create room as admin → 201, code stored as LAB-01, Location header set
+# @name createRoom
+POST {{baseUrl}}/rooms
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{ "code": "lab-01", "name": "Lab Komputer 1", "building": "Gedung C", "capacity": 40 }
+
+### RM-04 create same code in lower case → 409
+POST {{baseUrl}}/rooms
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{ "code": "lab-01", "name": "Lab Komputer 1", "building": "Gedung C", "capacity": 40 }
+
+### RM-05 create with capacity 0 → 422
+POST {{baseUrl}}/rooms
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{ "code": "lab-02", "name": "Lab Komputer 2", "building": "Gedung C", "capacity": 0 }
+
+### RM-06 get room with non-numeric id → 400
+GET {{baseUrl}}/rooms/abc
+Authorization: Bearer {{andiToken}}
+
+### RM-07 get unknown room → 404
+GET {{baseUrl}}/rooms/9999
+Authorization: Bearer {{andiToken}}
+
+### Setup: admin membuat ruang kedua
+# @name createRoom2
+POST {{baseUrl}}/rooms
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{ "code": "LAB-02", "name": "Lab Komputer 2", "building": "Gedung C", "capacity": 30 }
+
+### RM-08 update room → 200, fields replaced
+PUT {{baseUrl}}/rooms/{{roomId}}
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{ "code": "LAB-01", "name": "Lab Komputer 1 Renovasi", "building": "Gedung D", "capacity": 45 }
+
+### RM-09 update room to an existing code → 409
+PUT {{baseUrl}}/rooms/{{roomId}}
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{ "code": "lab-02", "name": "Lab Komputer 1 Renovasi", "building": "Gedung D", "capacity": 45 }
+
+### RM-10 delete room → 204, then get shows is_active false
+DELETE {{baseUrl}}/rooms/{{roomId}}
+Authorization: Bearer {{adminToken}}
+
+### RM-10 get the deleted room → 200, is_active false
+GET {{baseUrl}}/rooms/{{roomId}}
+Authorization: Bearer {{adminToken}}
+
+### RM-11 availability with valid date → 200, booked list ordered by start_time
+GET {{baseUrl}}/rooms/{{room2Id}}/availability?date=2030-12-01
+Authorization: Bearer {{andiToken}}
+
+### RM-12 availability with bad date → 400
+GET {{baseUrl}}/rooms/{{room2Id}}/availability?date=xyz
+Authorization: Bearer {{andiToken}}
