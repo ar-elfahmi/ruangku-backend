@@ -102,7 +102,7 @@ func (r *roomRepository) SoftDelete(ctx context.Context, id int) error {
 // [dayStart, dayEnd), diurutkan berdasarkan waktu mulai.
 func (r *roomRepository) FindBookedSlots(ctx context.Context, roomID int, dayStart, dayEnd time.Time) ([]model.TimeSlot, error) {
 	rows, err := r.db.Query(ctx,
-		"SELECT booking_id, start_time, end_time, status FROM bookings WHERE room_id = $1 AND status IN ('pending', 'approved') AND start_time < $3 AND end_time > $2 ORDER BY start_time",
+		"SELECT id AS booking_id, start_time, end_time, status FROM bookings WHERE room_id = $1 AND status IN ('pending', 'approved') AND start_time < $3 AND end_time > $2 ORDER BY start_time",
 		roomID, dayStart, dayEnd)
 	if err != nil {
 		return nil, TranslateError(err)
