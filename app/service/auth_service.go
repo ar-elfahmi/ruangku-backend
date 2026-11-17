@@ -11,6 +11,10 @@ import (
 	"ruangku-backend/helper"
 )
 
+const (
+	messageWrongCredentials = "email atau password salah"
+)
+
 type authService struct {
 	users repository.UserRepository
 	jwt   *helper.JWTManager
