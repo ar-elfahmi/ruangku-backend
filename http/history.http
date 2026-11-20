@@ -1,0 +1,142 @@
+@baseUrl = http://localhost:8080/api/v1
+@adminToken = {{loginAdmin.response.body.data.access_token}}
+@peminjamToken = {{loginPeminjam.response.body.data.access_token}}
+@pengelolaToken = {{loginPengelola.response.body.data.access_token}}
+@roomId = {{createRoom.response.body.data.id}}
+
+### ============================================================================
+### SETUP PENGUJIAN
+### ============================================================================
+
+### Setup 1: Login Admin
+# @name loginAdmin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@ruangku.local",
+  "password": "admin12345"
+}
+
+### Setup 2: Register Peminjam (Dodi)
+# @name registerPeminjam
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "name": "Dodi Peminjam",
+  "email": "dodi.history@kampus.ac.id",
+  "password": "rahasia123"
+}
+
+### Setup 3: Login Peminjam (Dodi)
+# @name loginPeminjam
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "dodi.history@kampus.ac.id",
+  "password": "rahasia123"
+}
+
+### Setup 4: Register Calon Pengelola (Eka)
+# @name registerPengelola
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "name": "Eka Pengelola",
+  "email": "eka.history@kampus.ac.id",
+  "password": "rahasia123"
+}
+
+### Setup 5: Admin Ubah Role Eka Menjadi pengelola
+PATCH {{baseUrl}}/users/{{registerPengelola.response.body.data.id}}/role
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "role": "pengelola"
+}
+
+### Setup 6: Login Pengelola (Eka)
+# @name loginPengelola
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "eka.history@kampus.ac.id",
+  "password": "rahasia123"
+}
+
+### Setup 7: Admin Buat Ruangan Uji
+# @name createRoom
+POST {{baseUrl}}/rooms
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "code": "HI-ROOM-01",
+  "name": "Ruang Uji History",
+  "building": "Gedung D",
+  "capacity": 50
+}
+
+### Setup 8: Peminjam Buat Booking 1 (Slot 08:00 - 10:00)
+# @name createBooking1
+POST {{baseUrl}}/bookings
+Authorization: Bearer {{peminjamToken}}
+Content-Type: application/json
+
+{
+  "room_id": {{roomId}},
+  "purpose": "Seminar Riset",
+  "start_time": "2030-11-01T08:00:00+07:00",
+  "end_time": "2030-11-01T10:00:00+07:00"
+}
+
+### Setup 9: Peminjam Buat Booking 2 (Slot 10:00 - 12:00)
+# @name createBooking2
+POST {{baseUrl}}/bookings
+Authorization: Bearer {{peminjamToken}}
+Content-Type: application/json
+
+{
+  "room_id": {{roomId}},
+  "purpose": "Workshop UI/UX",
+  "start_time": "2030-11-01T10:00:00+07:00",
+  "end_time": "2030-11-01T12:00:00+07:00"
+}
+
+### Setup 10: Pengelola Setujui Booking 1 (Status Berubah Jadi approved)
+PATCH {{baseUrl}}/bookings/{{createBooking1.response.body.data.id}}/approve
+Authorization: Bearer {{pengelolaToken}}
+Content-Type: application/json
+
+{
+  "note": "Kegiatan resmi kampus disetujui"
+}
+
+### ============================================================================
+### SKENARIO PENGUJIAN TASK D3 (HI-01 s/d HI-05)
+### ============================================================================
+
+### HI-01: mine → 200 (Ambil riwayat booking milik sendiri sebagai peminjam)
+GET {{baseUrl}}/bookings/mine
+Authorization: Bearer {{peminjamToken}}
+
+### HI-02: mine?status=done → 400 (Status tidak valid)
+GET {{baseUrl}}/bookings/mine?status=done
+Authorization: Bearer {{peminjamToken}}
+
+### HI-03: ListAll as pengelola → 200 (Pengelola melihat semua daftar peminjaman)
+GET {{baseUrl}}/bookings
+Authorization: Bearer {{pengelolaToken}}
+
+### HI-04: ListAll as peminjam → 403 (Peminjam dilarang mengakses list all)
+GET {{baseUrl}}/bookings
+Authorization: Bearer {{peminjamToken}}
+
+### HI-05: ?room_id=...&status=approved → 200 (Hanya baris yang cocok)
+GET {{baseUrl}}/bookings?room_id={{roomId}}&status=approved
+Authorization: Bearer {{pengelolaToken}}

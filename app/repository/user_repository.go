@@ -7,6 +7,7 @@ import (
 )
 
 const userColumns = "id, name, email, password_hash, role, created_at"
+
 type userRepository struct {
 	db DBTX
 }
