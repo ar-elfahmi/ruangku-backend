@@ -120,6 +120,12 @@ func (s *bookingService) Create(c *fiber.Ctx) error {
 	case err != nil:
 		return helper.Internal(err)
 	}
+	notifyBookingStatus(s.notifier, model.BookingStatusEvent{
+		BookingID:  created.ID,
+		OwnerID:    created.UserID,
+		Status:     model.StatusPending,
+		OccurredAt: time.Now(),
+	})
 	return helper.Created(c, "peminjaman berhasil diajukan", created, "")
 }
 
@@ -203,6 +209,12 @@ func (s *bookingService) changeStatus(c *fiber.Ctx, target, successMessage strin
 	case err != nil:
 		return helper.Internal(err)
 	}
+	notifyBookingStatus(s.notifier, model.BookingStatusEvent{
+		BookingID:  updated.ID,
+		OwnerID:    updated.UserID,
+		Status:     target,
+		OccurredAt: time.Now(),
+	})
 	return helper.Success(c, fiber.StatusOK, successMessage, updated)
 }
 
