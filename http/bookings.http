@@ -156,3 +156,22 @@ Authorization: Bearer {{andiToken}}
 ### BK-11 logs of someone else's booking → 403
 GET {{baseUrl}}/bookings/{{bookingId}}/logs
 Authorization: Bearer {{budiToken}}
+
+# ---------------------------------------------------------------------------
+# Notifikasi (BK-12 dst). Jalankan SETELAH BK-01 sampai BK-11.
+# Syarat: worker berjalan (go run ./cmd/worker) dan endpoint /notifications
+# sudah ter-wire. Notifikasi dibuat worker beberapa saat setelah response
+# booking, jadi bila daftar masih kosong, ulangi request beberapa detik lagi.
+# ---------------------------------------------------------------------------
+
+### BK-12 owner sees 3 notifications for the booking (cancelled, approved, pending; newest first) → 200
+GET {{baseUrl}}/notifications
+Authorization: Bearer {{andiToken}}
+
+### BK-13 other borrower sees only their own notification (pending of BK-03); none for the rejected-by-overlap BK-04 → 200
+GET {{baseUrl}}/notifications
+Authorization: Bearer {{budiToken}}
+
+### BK-14 pengelola does not receive the borrowers' notifications → 200, empty list
+GET {{baseUrl}}/notifications
+Authorization: Bearer {{pengelolaToken}}
