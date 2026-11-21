@@ -19,5 +19,22 @@ services:
       retries: 12
       start_period: 10s
 
+  redis:
+    image: redis:7.4.12-alpine
+    container_name: ruangku-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec"]
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
+    volumes:
+      - ruangku-redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
 volumes:
   ruangku-pgdata:
+  ruangku-redisdata:
