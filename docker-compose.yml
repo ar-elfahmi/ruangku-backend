@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:16-alpine
+    image: postgres:16.16-alpine
     container_name: ruangku-postgres
     restart: unless-stopped
     environment:
@@ -8,10 +8,16 @@ services:
       POSTGRES_USER: ruangku
       POSTGRES_PASSWORD: ruangku
     ports:
-      - "5432:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - ./migrations:/docker-entrypoint-initdb.d
       - ruangku-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ruangku -d ruangku"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
 
 volumes:
   ruangku-pgdata:
