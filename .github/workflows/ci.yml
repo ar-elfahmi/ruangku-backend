@@ -27,6 +27,31 @@ jobs:
       - name: Verify modules
         run: go mod verify
 
+      - name: go.mod and go.sum are tidy
+        run: go mod tidy -diff
+
+      - name: gofmt
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "Run gofmt -w on:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      # Team naming rule: declared identifiers and paths must not use
+      # controller/handler. Library APIs such as fiber.Handler are fine.
+      - name: Naming rule
+        run: |
+          if git grep -nE "(func|type|var|const)\s+\w*([Cc]ontroller|[Hh]andler)" -- "*.go"; then
+            echo "Identifiers must not contain controller/handler."
+            exit 1
+          fi
+          if git ls-files | grep -iE "(controller|handler)"; then
+            echo "File and folder names must not contain controller/handler."
+            exit 1
+          fi
+
       - name: Build
         run: go build ./...
 
