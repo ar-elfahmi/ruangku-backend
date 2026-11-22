@@ -4,6 +4,8 @@ import (
 	"context"
 
 	"github.com/gofiber/fiber/v2"
+
+	"ruangku-backend/app/model"
 )
 
 // AuthService: POST /auth/register, POST /auth/login, GET /auth/me.
@@ -43,4 +45,10 @@ type BookingService interface {
 type HistoryService interface {
 	Mine(c *fiber.Ctx) error    // GET /bookings/mine?status=        200 / 400
 	ListAll(c *fiber.Ctx) error // GET /bookings?status=&room_id=    200 / 400
+}
+
+// NotificationEnqueuer mengirim event perubahan status ke antrean. Hanya boleh
+// dipanggil SETELAH transaksi PostgreSQL commit, tidak pernah di dalamnya.
+type NotificationEnqueuer interface {
+	EnqueueBookingStatus(ctx context.Context, e model.BookingStatusEvent) error
 }

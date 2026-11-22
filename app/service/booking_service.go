@@ -1,7 +1,9 @@
 package service
 
 import (
+	"context"
 	"errors"
+	"log"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -19,14 +21,47 @@ const (
 	messageInvalidToken    = "token tidak valid atau sudah kedaluwarsa"
 )
 
+// notifyTimeout membatasi waktu mengirim event ke antrean. Context-nya baru,
+// bukan context request, agar pengiriman tidak ikut batal bila klien putus.
+const notifyTimeout = 2 * time.Second
+
 type bookingService struct {
 	bookings repository.BookingRepository
 	rooms    repository.RoomRepository
 	tx       *repository.TxManager
+	notifier NotificationEnqueuer // nil = mode tanpa notifikasi
 }
 
-func NewBookingService(b repository.BookingRepository, r repository.RoomRepository, tx *repository.TxManager) BookingService {
-	return &bookingService{bookings: b, rooms: r, tx: tx}
+// BookingOption mengubah konfigurasi bookingService. Dipakai agar signature
+// NewBookingService tetap kompatibel saat fitur baru belum di-wire.
+type BookingOption func(*bookingService)
+
+// WithNotifier mengaktifkan pengiriman event notifikasi setelah booking dibuat
+// atau berubah status. Tanpa opsi ini, hook dilewati.
+func WithNotifier(n NotificationEnqueuer) BookingOption {
+	return func(s *bookingService) { s.notifier = n }
+}
+
+func NewBookingService(b repository.BookingRepository, r repository.RoomRepository, tx *repository.TxManager, opts ...BookingOption) BookingService {
+	s := &bookingService{bookings: b, rooms: r, tx: tx}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
+}
+
+// notifyBookingStatus mengirim event ke antrean. Kegagalan hanya dicatat dan
+// tidak mengubah response HTTP: perubahan di PostgreSQL sudah commit dan
+// itulah sumber kebenarannya.
+func notifyBookingStatus(n NotificationEnqueuer, e model.BookingStatusEvent) {
+	if n == nil {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), notifyTimeout)
+	defer cancel()
+	if err := n.EnqueueBookingStatus(ctx, e); err != nil {
+		log.Printf("notifikasi: gagal mengirim event booking %d (%s): %v", e.BookingID, e.Status, err)
+	}
 }
 
 func (s *bookingService) Create(c *fiber.Ctx) error {
@@ -85,6 +120,12 @@ func (s *bookingService) Create(c *fiber.Ctx) error {
 	case err != nil:
 		return helper.Internal(err)
 	}
+	notifyBookingStatus(s.notifier, model.BookingStatusEvent{
+		BookingID:  created.ID,
+		OwnerID:    created.UserID,
+		Status:     model.StatusPending,
+		OccurredAt: time.Now(),
+	})
 	return helper.Created(c, "peminjaman berhasil diajukan", created, "")
 }
 
@@ -168,6 +209,12 @@ func (s *bookingService) changeStatus(c *fiber.Ctx, target, successMessage strin
 	case err != nil:
 		return helper.Internal(err)
 	}
+	notifyBookingStatus(s.notifier, model.BookingStatusEvent{
+		BookingID:  updated.ID,
+		OwnerID:    updated.UserID,
+		Status:     target,
+		OccurredAt: time.Now(),
+	})
 	return helper.Success(c, fiber.StatusOK, successMessage, updated)
 }
 
