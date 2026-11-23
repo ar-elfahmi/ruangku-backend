@@ -52,3 +52,7 @@ type HistoryService interface {
 type NotificationEnqueuer interface {
 	EnqueueBookingStatus(ctx context.Context, e model.BookingStatusEvent) error
 }
+
+type NotificaationService interface {
+
+}
