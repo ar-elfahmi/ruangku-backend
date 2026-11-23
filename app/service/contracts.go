@@ -60,3 +60,14 @@ type NotificationService interface {
 	MarkRead(c *fiber.Ctx) error    // PATCH /notifications/:id/read     200 / 400 / 401 / 404
 	MarkAllRead(c *fiber.Ctx) error // PATCH /notifications/read-all     200 / 401
 }
+
+type RefreshIssuer interface {
+	Issue(ctx context.Context, userID int) (refreshToken string, expiresIn int, err error)
+}
+
+// SessionService: /auth/refresh dan /auth/logout. Interface terpisah dari
+// AuthService agar kontrak Phase 1 tidak berubah.
+type SessionService interface {
+	Refresh(c *fiber.Ctx) error // POST /auth/refresh  body {refresh_token}          200 TokenResponse / 401 / 422
+	Logout(c *fiber.Ctx) error  // POST /auth/logout   Bearer + body {refresh_token}  204 / 401 / 403 / 422
+}
