@@ -177,7 +177,46 @@ func (s *sessionService) refreshTTL() time.Duration {
 	return time.Duration(s.refresh.TTLSeconds()) * time.Second
 }
 
-// Logout masih skeleton: diisi di Tahap 5.
 func (s *sessionService) Logout(c *fiber.Ctx) error {
-	return helper.NotImplemented("fitur belum tersedia")
+	ctx, cancel := helper.RequestContext(c)
+	defer cancel()
+
+	var req model.RefreshRequest
+	if err := c.BodyParser(&req); err != nil {
+		return helper.BadRequest(messageBodyInvalid)
+	}
+	if errs := helper.ValidateStruct(req); errs != nil {
+		return helper.Validation(errs)
+	}
+
+	// Signature dan klaim harus valid; exp boleh sudah lewat.
+	claims, err := s.refresh.ParseAllowExpired(req.RefreshToken)
+	if err != nil {
+		return helper.Unauthorized(messageRefreshFailed)
+	}
+
+	user, ok := helper.CurrentUser(c)
+	if !ok {
+		return helper.Unauthorized(messageInvalidToken)
+	}
+
+	changed, err := s.repo.UpdateFamilyRevoked(ctx, claims.FamilyID, user.ID, "logout")
+	if err != nil {
+		return helper.Internal(err)
+	}
+	if !changed {
+		// Bedakan: keluarga tidak ada (204) vs milik user lain (403) vs sudah revoked (204).
+		family, findErr := s.repo.FindFamily(ctx, claims.FamilyID)
+		switch {
+		case errors.Is(findErr, repository.ErrNotFound):
+			return helper.NoContent(c)
+		case findErr != nil:
+			return helper.Internal(findErr)
+		case family.UserID != user.ID:
+			return helper.Forbidden("akses ditolak")
+		default:
+			return helper.NoContent(c) // sudah pernah dicabut: tetap 204
+		}
+	}
+	return helper.NoContent(c)
 }
