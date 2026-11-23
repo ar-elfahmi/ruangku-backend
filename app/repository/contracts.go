@@ -35,3 +35,8 @@ type BookingRepository interface {
 type HistoryRepository interface {
 	FindBookings(ctx context.Context, f model.HistoryFilter) ([]model.BookingDetail, error)
 }
+
+// placeholder for future notification repository
+type NotificationRepository interface {
+
+}
