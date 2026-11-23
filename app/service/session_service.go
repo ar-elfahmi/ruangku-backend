@@ -220,3 +220,53 @@ func (s *sessionService) Logout(c *fiber.Ctx) error {
 	}
 	return helper.NoContent(c)
 }
+
+type sessionIssuer struct {
+	repo    repository.RefreshTokenRepository
+	tx      *repository.TxManager
+	refresh *helper.RefreshJWTManager
+}
+
+func NewRefreshIssuer(r repository.RefreshTokenRepository, tx *repository.TxManager, refresh *helper.RefreshJWTManager) RefreshIssuer {
+	return &sessionIssuer{repo: r, tx: tx, refresh: refresh}
+}
+
+// Issue membuat keluarga baru plus token pertamanya. Dipanggil oleh Login
+// SETELAH user ditemukan dan password cocok.
+func (i *sessionIssuer) Issue(ctx context.Context, userID int) (string, int, error) {
+	familyID, err := helper.NewTokenID()
+	if err != nil {
+		return "", 0, err
+	}
+	tokenID, err := helper.NewTokenID()
+	if err != nil {
+		return "", 0, err
+	}
+
+	err = i.tx.Do(ctx, func(tx repository.DBTX) error {
+		r := i.repo.WithTx(tx)
+		if err := r.InsertFamily(ctx, model.RefreshFamily{
+			ID:        familyID,
+			UserID:    userID,
+			CreatedAt: time.Now(),
+		}); err != nil {
+			return err
+		}
+		return r.InsertToken(ctx, model.RefreshToken{
+			JTI:       tokenID,
+			FamilyID:  familyID,
+			UserID:    userID,
+			IssuedAt:  time.Now(),
+			ExpiresAt: time.Now().Add(time.Duration(i.refresh.TTLSeconds()) * time.Second),
+		})
+	})
+	if err != nil {
+		return "", 0, err
+	}
+
+	signed, err := i.refresh.Generate(userID, familyID, tokenID)
+	if err != nil {
+		return "", 0, err
+	}
+	return signed, i.refresh.TTLSeconds(), nil
+}
