@@ -52,3 +52,11 @@ type HistoryService interface {
 type NotificationEnqueuer interface {
 	EnqueueBookingStatus(ctx context.Context, e model.BookingStatusEvent) error
 }
+
+// NotificationService: /notifications.
+type NotificationService interface {
+	List(c *fiber.Ctx) error        // GET   /notifications              200 / 400 / 401
+	UnreadCount(c *fiber.Ctx) error // GET   /notifications/unread-count 200 / 401
+	MarkRead(c *fiber.Ctx) error    // PATCH /notifications/:id/read     200 / 400 / 401 / 404
+	MarkAllRead(c *fiber.Ctx) error // PATCH /notifications/read-all     200 / 401
+}

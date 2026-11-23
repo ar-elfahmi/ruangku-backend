@@ -35,3 +35,12 @@ type BookingRepository interface {
 type HistoryRepository interface {
 	FindBookings(ctx context.Context, f model.HistoryFilter) ([]model.BookingDetail, error)
 }
+
+// NotificationRepository menyimpan notifikasi di MongoDB.
+type NotificationRepository interface {
+	InsertNotification(ctx context.Context, n model.Notification) error                     // ErrDuplicate
+	FindByUser(ctx context.Context, userID int, onlyUnread bool, limit int) ([]model.Notification, error)
+	CountUnread(ctx context.Context, userID int) (int, error)
+	UpdateRead(ctx context.Context, userID int, id string) (model.Notification, error)     // ErrNotFound
+	UpdateAllRead(ctx context.Context, userID int) (int, error)
+}
