@@ -20,6 +20,17 @@ func NewNotificationService(r repository.NotificationRepository) NotificationSer
 func (s *notificationService) List(c *fiber.Ctx) error {
 	return helper.NotImplemented("fitur belum tersedia") // 501
 }
-// ... UnreadCount / MarkRead / MarkAllRead sama
+
+func (s *notificationService) UnreadCount(c *fiber.Ctx) error {
+	return helper.NotImplemented("fitur belum tersedia") // 501
+}
+
+func (s *notificationService) MarkRead(c *fiber.Ctx) error {
+	return helper.NotImplemented("fitur belum tersedia") // 501
+}
+
+func (s *notificationService) MarkAllRead(c *fiber.Ctx) error {
+	return helper.NotImplemented("fitur belum tersedia") // 501
+}
 
 var _ NotificationService = (*notificationService)(nil)
