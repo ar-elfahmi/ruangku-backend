@@ -44,3 +44,15 @@ type NotificationRepository interface {
 	UpdateRead(ctx context.Context, userID int, id string) (model.Notification, error)     // ErrNotFound
 	UpdateAllRead(ctx context.Context, userID int) (int, error)
 }
+
+type RefreshTokenRepository interface {
+	WithTx(tx DBTX) RefreshTokenRepository
+	InsertFamily(ctx context.Context, f model.RefreshFamily) error
+	InsertToken(ctx context.Context, t model.RefreshToken) error
+	FindFamily(ctx context.Context, id string) (model.RefreshFamily, error)         // ErrNotFound
+	FindFamilyForShare(ctx context.Context, id string) (model.RefreshFamily, error) // SELECT ... FOR SHARE; ErrNotFound
+	FindToken(ctx context.Context, jti string) (model.RefreshToken, error)          // ErrNotFound
+	UpdateTokenUsed(ctx context.Context, jti, familyID string, userID int) (model.RefreshToken, error) // ErrConflict bila 0 baris
+	UpdateTokenReplacedBy(ctx context.Context, oldJTI, newJTI string) error
+	UpdateFamilyRevoked(ctx context.Context, familyID string, userID int, reason string) (bool, error) // true bila ada baris berubah
+}
