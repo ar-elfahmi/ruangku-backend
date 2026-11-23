@@ -85,3 +85,126 @@ Content-Type: application/json
 {
   "role": "admin"
 }
+
+### ============================================================================
+### SKENARIO REFRESH JWT (AU-09 dst.) — Phase 2, milik D
+### ============================================================================
+
+### Setup R1: Register user baru untuk uji refresh
+# @name registerRefresh
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "name": "Rina Refresh",
+  "email": "rina.refresh@kampus.ac.id",
+  "password": "rahasia123"
+}
+
+### Setup R2: Login Rina → 200 (dapat access_token DAN refresh_token)
+# @name loginRefresh
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "rina.refresh@kampus.ac.id",
+  "password": "rahasia123"
+}
+
+### AU-09 login returns a refresh token → 200 (cek data.refresh_token tidak kosong)
+# (pakai respons loginRefresh di atas)
+
+### AU-10 refresh with the token → 200 (dapat pasangan baru)
+# @name refreshOnce
+POST {{baseUrl}}/auth/refresh
+Content-Type: application/json
+
+{
+  "refresh_token": "{{loginRefresh.response.body.data.refresh_token}}"
+}
+
+### AU-11 reuse the old refresh token → 401 (keluarga dicabut)
+POST {{baseUrl}}/auth/refresh
+Content-Type: application/json
+
+{
+  "refresh_token": "{{loginRefresh.response.body.data.refresh_token}}"
+}
+
+### AU-12 the rotated token is revoked too → 401 (bukti pencabutan keluarga)
+POST {{baseUrl}}/auth/refresh
+Content-Type: application/json
+
+{
+  "refresh_token": "{{refreshOnce.response.body.data.refresh_token}}"
+}
+
+### AU-13 refresh without a body → 422
+POST {{baseUrl}}/auth/refresh
+Content-Type: application/json
+
+{}
+
+### AU-14 refresh with an access token → 401 (cross use)
+POST {{baseUrl}}/auth/refresh
+Content-Type: application/json
+
+{
+  "refresh_token": "{{loginRefresh.response.body.data.access_token}}"
+}
+
+### AU-15 logout with the rotated token → 204
+# @name logoutOnce
+POST {{baseUrl}}/auth/logout
+Authorization: Bearer {{refreshOnce.response.body.data.access_token}}
+Content-Type: application/json
+
+{
+  "refresh_token": "{{refreshOnce.response.body.data.refresh_token}}"
+}
+
+### AU-16 refresh after logout → 401
+POST {{baseUrl}}/auth/refresh
+Content-Type: application/json
+
+{
+  "refresh_token": "{{refreshOnce.response.body.data.refresh_token}}"
+}
+
+### AU-17 logout without a Bearer token → 401
+POST {{baseUrl}}/auth/logout
+Content-Type: application/json
+
+{
+  "refresh_token": "{{refreshOnce.response.body.data.refresh_token}}"
+}
+
+### AU-18 logout with another user's refresh token → 403
+# Bearer milik Andi, tapi refresh_token milik Rina → 403 dan keluarga Rina TIDAK tercabut.
+# @name loginSecond
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "andi@kampus.ac.id",
+  "password": "rahasia123"
+}
+
+###
+POST {{baseUrl}}/auth/logout
+Authorization: Bearer {{loginSecond.response.body.data.access_token}}
+Content-Type: application/json
+
+{
+  "refresh_token": "{{loginRefresh.response.body.data.refresh_token}}"
+}
+
+### AU-19 logout with an unknown family → 204
+# Buat token, logout dua kali; logout kedua → 204 (sudah revoked)
+POST {{baseUrl}}/auth/logout
+Authorization: Bearer {{loginSecond.response.body.data.access_token}}
+Content-Type: application/json
+
+{
+  "refresh_token": "bukan-token-asli"
+}
