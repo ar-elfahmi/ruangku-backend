@@ -39,12 +39,11 @@ func (m *RefreshJWTManager) Parse(token string) (RefreshClaims, error) {
 	return RefreshClaims{}, ErrRefreshInvalid
 }
 
-// ParseAllowExpired dipakai logout: signature harus valid, exp boleh lewat.
 func (m *RefreshJWTManager) ParseAllowExpired(token string) (RefreshClaims, error) {
 	return RefreshClaims{}, ErrRefreshInvalid
 }
 
-// TTLSeconds mengembalikan masa berlaku refresh token dalam detik.
+
 func (m *RefreshJWTManager) TTLSeconds() int {
 	return 0
 }
