@@ -30,3 +30,10 @@ type TokenResponse struct {
 type ChangeRoleRequest struct {
 	Role string `json:"role" validate:"required,oneof=admin pengelola peminjam"`
 }
+
+type TokenResponse struct {
+	AccessToken      string `json:"access_token"`
+	ExpiresIn        int    `json:"expires_in"`
+	RefreshToken     string `json:"refresh_token,omitempty"`
+	RefreshExpiresIn int    `json:"refresh_expires_in,omitempty"`
+}
