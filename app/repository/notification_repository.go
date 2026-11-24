@@ -161,7 +161,17 @@ func (r *notificationRepository) UpdateRead(ctx context.Context, userID int, id 
 }
 
 func (r *notificationRepository) UpdateAllRead(ctx context.Context, userID int) (int, error) {
-	return 0, ErrNotImplemented
+	result, err := r.collection().UpdateMany(ctx,
+		bson.D{{Key: "user_id", Value: userID}, {Key: "is_read", Value: false}},
+		bson.D{{Key: "$set", Value: bson.D{
+			{Key: "is_read", Value: true},
+			{Key: "read_at", Value: time.Now()},
+		}}},
+	)
+	if err != nil {
+		return 0, TranslateMongoError(err)
+	}
+	return int(result.ModifiedCount), nil
 }
 
 func (r *notificationRepository) collection() *mongo.Collection {
