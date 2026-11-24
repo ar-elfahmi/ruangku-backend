@@ -39,7 +39,19 @@ func (s *notificationService) List(c *fiber.Ctx) error {
 }
 
 func (s *notificationService) UnreadCount(c *fiber.Ctx) error {
-	return helper.NotImplemented("fitur belum tersedia") // 501
+	ctx, cancel := helper.RequestContext(c)
+	defer cancel()
+
+	user, ok := helper.CurrentUser(c)
+	if !ok {
+		return helper.Unauthorized(messageInvalidToken)
+	}
+
+	count, err := s.notifications.CountUnread(ctx, user.ID)
+	if err != nil {
+		return helper.Internal(err)
+	}
+	return helper.Success(c, fiber.StatusOK, messageNotificationUnread, fiber.Map{"count": count})
 }
 
 func (s *notificationService) MarkRead(c *fiber.Ctx) error {
