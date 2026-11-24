@@ -16,6 +16,7 @@ type Dependencies struct {
 	Pool         *pgxpool.Pool
 	JWT          *helper.JWTManager
 	Auth         service.AuthService
+	Session      service.SessionService
 	User         service.UserService
 	Room         service.RoomService
 	Booking      service.BookingService
@@ -42,6 +43,8 @@ func registerAuth(api fiber.Router, d Dependencies) {
 	auth.Post("/register", d.Auth.Register)
 	auth.Post("/login", d.Auth.Login)
 	auth.Get("/me", requireAuth, d.Auth.Me)
+	auth.Post("/refresh", d.Session.Refresh)
+	auth.Post("/logout", requireAuth, d.Session.Logout)
 
 	api.Patch("/users/:id/role", requireAuth, middleware.RequireRole(model.RoleAdmin), d.User.ChangeRole)
 }
