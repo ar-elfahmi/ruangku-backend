@@ -13,13 +13,14 @@ import (
 // Dependencies berisi semua yang dibutuhkan route. Service bertipe interface
 // agar route tidak bergantung pada implementasi.
 type Dependencies struct {
-	Pool    *pgxpool.Pool
-	JWT     *helper.JWTManager
-	Auth    service.AuthService
-	User    service.UserService
-	Room    service.RoomService
-	Booking service.BookingService
-	History service.HistoryService
+	Pool         *pgxpool.Pool
+	JWT          *helper.JWTManager
+	Auth         service.AuthService
+	User         service.UserService
+	Room         service.RoomService
+	Booking      service.BookingService
+	History      service.HistoryService
+	Notification service.NotificationService
 }
 
 // Register memasang semua route di bawah /api/v1.
@@ -31,6 +32,7 @@ func Register(app *fiber.App, d Dependencies) {
 	registerAuth(api, d)
 	registerRooms(api, d)
 	registerBookings(api, d)
+	registerNotifications(api, d)
 }
 
 func registerAuth(api fiber.Router, d Dependencies) {
@@ -71,6 +73,15 @@ func registerBookings(api fiber.Router, d Dependencies) {
 	bookings.Patch("/:id/approve", requirePengelola, d.Booking.Approve)
 	bookings.Patch("/:id/reject", requirePengelola, d.Booking.Reject)
 	bookings.Get("/:id/logs", d.Booking.Logs)
+}
+
+func registerNotifications(api fiber.Router, d Dependencies) {
+	notifications := api.Group("/notifications", middleware.RequireAuth(d.JWT))
+	notifications.Get("/", d.Notification.List)
+	notifications.Get("/unread-count", d.Notification.UnreadCount)
+	// /read-all satu segmen, /:id/read dua segmen: tidak bentrok.
+	notifications.Patch("/read-all", d.Notification.MarkAllRead)
+	notifications.Patch("/:id/read", d.Notification.MarkRead)
 }
 
 func health(pool *pgxpool.Pool) fiber.Handler {
