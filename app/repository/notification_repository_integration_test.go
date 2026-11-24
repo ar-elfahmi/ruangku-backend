@@ -196,3 +196,45 @@ func TestFindByUser(t *testing.T) {
 		t.Fatalf("jumlah dengan limit 500 = %d, mau 100", len(limited))
 	}
 }
+
+// C-I4
+func TestUpdateRead(t *testing.T) {
+	repo, _ := newRepository(t)
+
+	owner, other := nextID(), nextID()
+	insert(t, repo, testNotification(owner, nextID(), "pending", time.Now()))
+
+	ctx, cancel := context.WithTimeout(context.Background(), testTimeout)
+	defer cancel()
+
+	all, err := repo.FindByUser(ctx, owner, false, 100)
+	if err != nil || len(all) != 1 {
+		t.Fatalf("FindByUser: %v, jumlah %d", err, len(all))
+	}
+	id := all[0].ID
+
+	read, err := repo.UpdateRead(ctx, owner, id)
+	if err != nil {
+		t.Fatalf("UpdateRead milik sendiri: %v", err)
+	}
+	if !read.IsRead || read.ReadAt == nil {
+		t.Fatalf("notifikasi belum tertandai dibaca: %+v", read)
+	}
+	firstReadAt := *read.ReadAt
+
+	again, err := repo.UpdateRead(ctx, owner, id)
+	if err != nil {
+		t.Fatalf("UpdateRead kedua: %v", err)
+	}
+	if again.ReadAt == nil || !again.ReadAt.Equal(firstReadAt) {
+		t.Fatalf("read_at berubah pada pemanggilan ulang: %v -> %v", firstReadAt, again.ReadAt)
+	}
+
+	if _, err := repo.UpdateRead(ctx, other, id); !errors.Is(err, repository.ErrNotFound) {
+		t.Fatalf("UpdateRead milik user lain: error = %v, mau ErrNotFound", err)
+	}
+	if _, err := repo.UpdateRead(ctx, owner, "bukan-object-id"); !errors.Is(err, repository.ErrNotFound) {
+		t.Fatalf("UpdateRead id tidak valid: error = %v, mau ErrNotFound", err)
+	}
+}
+
