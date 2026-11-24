@@ -16,12 +16,24 @@ const (
 )
 
 type authService struct {
-	users repository.UserRepository
-	jwt   *helper.JWTManager
+	users  repository.UserRepository
+	jwt    *helper.JWTManager
+	issuer RefreshIssuer // nil = login tanpa refresh token (mode lama)
 }
 
-func NewAuthService(u repository.UserRepository, jwt *helper.JWTManager) AuthService {
-	return &authService{users: u, jwt: jwt}
+type AuthOption func(*authService)
+
+// WithRefreshIssuer mengaktifkan penerbitan refresh token saat login.
+func WithRefreshIssuer(i RefreshIssuer) AuthOption {
+	return func(s *authService) { s.issuer = i }
+}
+
+func NewAuthService(u repository.UserRepository, jwt *helper.JWTManager, opts ...AuthOption) AuthService {
+	s := &authService{users: u, jwt: jwt}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
 }
 
 func (s *authService) Register(c *fiber.Ctx) error {
@@ -87,10 +99,21 @@ func (s *authService) Login(c *fiber.Ctx) error {
 		return helper.Internal(err)
 	}
 
-	return helper.Success(c, fiber.StatusOK, "login berhasil", model.TokenResponse{
+	response := model.TokenResponse{
 		AccessToken: token,
 		ExpiresIn:   s.jwt.TTLSeconds(),
-	})
+	}
+
+	if s.issuer != nil {
+		refresh, expiresIn, err := s.issuer.Issue(ctx, user.ID)
+		if err != nil {
+			return helper.Internal(err)
+		}
+		response.RefreshToken = refresh
+		response.RefreshExpiresIn = expiresIn
+	}
+
+	return helper.Success(c, fiber.StatusOK, "login berhasil", response)
 }
 
 func (s *authService) Me(c *fiber.Ctx) error {
