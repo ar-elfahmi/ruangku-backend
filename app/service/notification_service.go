@@ -18,7 +18,24 @@ func NewNotificationService(r repository.NotificationRepository) NotificationSer
 }
 
 func (s *notificationService) List(c *fiber.Ctx) error {
-	return helper.NotImplemented("fitur belum tersedia") // 501
+	ctx, cancel := helper.RequestContext(c)
+	defer cancel()
+
+	user, ok := helper.CurrentUser(c)
+	if !ok {
+		return helper.Unauthorized(messageInvalidToken)
+	}
+
+	onlyUnread, err := ParseUnreadFilter(c.Query("is_read"))
+	if err != nil {
+		return err
+	}
+
+	notifications, err := s.notifications.FindByUser(ctx, user.ID, onlyUnread, notificationListLimit)
+	if err != nil {
+		return helper.Internal(err)
+	}
+	return helper.Success(c, fiber.StatusOK, messageNotificationList, notifications)
 }
 
 func (s *notificationService) UnreadCount(c *fiber.Ctx) error {
