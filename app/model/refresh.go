@@ -3,16 +3,15 @@ package model
 import "time"
 
 type RefreshFamily struct {
-	ID            string    // fid, 32 karakter hex
+	ID            string // fid, 32 karakter hex
 	UserID        int
 	CreatedAt     time.Time
 	RevokedAt     *time.Time
 	RevokedReason *string // logout | reuse
 }
 
-
 type RefreshToken struct {
-	JTI        string    // token id, 32 karakter hex
+	JTI        string // token id, 32 karakter hex
 	FamilyID   string
 	UserID     int
 	IssuedAt   time.Time

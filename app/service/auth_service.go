@@ -36,7 +36,6 @@ func NewAuthService(u repository.UserRepository, jwt *helper.JWTManager, opts ..
 	return s
 }
 
-
 func (s *authService) Register(c *fiber.Ctx) error {
 	ctx, cancel := helper.RequestContext(c)
 	defer cancel()
@@ -100,7 +99,7 @@ func (s *authService) Login(c *fiber.Ctx) error {
 		return helper.Internal(err)
 	}
 
-		response := model.TokenResponse{
+	response := model.TokenResponse{
 		AccessToken: token,
 		ExpiresIn:   s.jwt.TTLSeconds(),
 	}

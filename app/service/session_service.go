@@ -25,11 +25,11 @@ const revokeTimeout = 3 * time.Second
 // sentinel error klasifikasi refresh; dikirim dari dalam tx.Do agar
 // transaksi rollback, lalu diterjemahkan di luar.
 var (
-	errSessionUnknown  = errors.New("sesi tidak dikenal")
-	errSessionRevoked  = errors.New("keluarga token sudah dicabut")
-	errSessionForeign  = errors.New("keluarga token milik user lain")
-	errSessionReuse    = errors.New("pemakaian ulang refresh token")
-	errSessionExpired  = errors.New("refresh token kedaluwarsa")
+	errSessionUnknown = errors.New("sesi tidak dikenal")
+	errSessionRevoked = errors.New("keluarga token sudah dicabut")
+	errSessionForeign = errors.New("keluarga token milik user lain")
+	errSessionReuse   = errors.New("pemakaian ulang refresh token")
+	errSessionExpired = errors.New("refresh token kedaluwarsa")
 )
 
 type sessionService struct {
