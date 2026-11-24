@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"log"
 	"os"
 	"os/signal"
@@ -19,10 +18,7 @@ import (
 	"ruangku-backend/route"
 )
 
-const (
-	minJWTSecretLength = 32
-	shutdownTimeout    = 10 * time.Second
-)
+const shutdownTimeout = 10 * time.Second
 
 func main() {
 	if err := run(); err != nil {
@@ -40,10 +36,15 @@ func run() error {
 	time.Local = loc
 
 	secret := config.GetEnv("JWT_SECRET", "")
-	if len(secret) < minJWTSecretLength {
-		return errors.New("JWT_SECRET harus diisi minimal 32 karakter")
+	refreshSecret := config.GetEnv("JWT_REFRESH_SECRET", "")
+	if err := helper.ValidateJWTSecrets(secret, refreshSecret); err != nil {
+		return err
 	}
-	jwtManager := helper.NewJWTManager(secret, time.Duration(config.GetEnvInt("JWT_TTL_MINUTES", 60))*time.Minute)
+	jwtManager := helper.NewJWTManager(secret, time.Duration(config.GetEnvInt("JWT_TTL_MINUTES", 15))*time.Minute)
+	refreshManager := helper.NewRefreshJWTManager(
+		refreshSecret,
+		time.Duration(config.GetEnvInt("JWT_REFRESH_TTL_HOURS", 168))*time.Hour,
+	)
 
 	pool, err := database.NewPool(context.Background())
 	if err != nil {
@@ -69,12 +70,18 @@ func run() error {
 	roomRepo := repository.NewRoomRepository(pool)
 	bookingRepo := repository.NewBookingRepository(pool)
 	historyRepo := repository.NewHistoryRepository(pool)
+	refreshRepo := repository.NewRefreshRepository(pool)
 	notificationRepo, err := repository.NewNotificationRepository(mongoDB)
 	if err != nil {
 		return err
 	}
 
-	authService := service.NewAuthService(userRepo, jwtManager)
+	authService := service.NewAuthService(
+		userRepo,
+		jwtManager,
+		service.WithRefreshIssuer(service.NewRefreshIssuer(refreshRepo, txManager, refreshManager)),
+	)
+	sessionService := service.NewSessionService(refreshRepo, refreshManager, jwtManager, userRepo, txManager)
 	userService := service.NewUserService(userRepo)
 	roomService := service.NewRoomService(roomRepo)
 	bookingService := service.NewBookingService(bookingRepo, roomRepo, txManager, service.WithNotifier(producer))
@@ -96,6 +103,7 @@ func run() error {
 		Pool:         pool,
 		JWT:          jwtManager,
 		Auth:         authService,
+		Session:      sessionService,
 		User:         userService,
 		Room:         roomService,
 		Booking:      bookingService,
