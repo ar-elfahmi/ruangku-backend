@@ -14,6 +14,9 @@ import (
 const (
 	notificationCollection = "notifications"
 
+	// maxNotificationList adalah batas jumlah notifikasi dalam satu daftar.
+	maxNotificationList = 100
+
 	indexCreateTimeout = 10 * time.Second
 )
 
@@ -90,7 +93,33 @@ func (r *notificationRepository) InsertNotification(ctx context.Context, n model
 }
 
 func (r *notificationRepository) FindByUser(ctx context.Context, userID int, onlyUnread bool, limit int) ([]model.Notification, error) {
-	return nil, ErrNotImplemented
+	if limit < 1 || limit > maxNotificationList {
+		limit = maxNotificationList
+	}
+
+	filter := bson.D{{Key: "user_id", Value: userID}}
+	if onlyUnread {
+		filter = append(filter, bson.E{Key: "is_read", Value: false})
+	}
+
+	cursor, err := r.collection().Find(ctx, filter, options.Find().
+		SetSort(bson.D{{Key: "created_at", Value: -1}, {Key: "_id", Value: -1}}).
+		SetLimit(int64(limit)))
+	if err != nil {
+		return nil, TranslateMongoError(err)
+	}
+	defer func() { _ = cursor.Close(ctx) }()
+
+	var docs []notificationDoc
+	if err := cursor.All(ctx, &docs); err != nil {
+		return nil, TranslateMongoError(err)
+	}
+
+	notifications := make([]model.Notification, 0, len(docs))
+	for _, doc := range docs {
+		notifications = append(notifications, doc.toModel())
+	}
+	return notifications, nil
 }
 
 func (r *notificationRepository) CountUnread(ctx context.Context, userID int) (int, error) {
