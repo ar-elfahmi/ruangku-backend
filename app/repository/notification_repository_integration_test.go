@@ -238,3 +238,65 @@ func TestUpdateRead(t *testing.T) {
 	}
 }
 
+// C-I5
+func TestUpdateAllReadAndCountUnread(t *testing.T) {
+	repo, _ := newRepository(t)
+
+	owner, other := nextID(), nextID()
+	base := time.Now().Add(-time.Hour)
+
+	insert(t, repo, testNotification(owner, nextID(), "pending", base))
+	insert(t, repo, testNotification(owner, nextID(), "approved", base.Add(time.Minute)))
+	insert(t, repo, testNotification(owner, nextID(), "cancelled", base.Add(2*time.Minute)))
+	insert(t, repo, testNotification(other, nextID(), "pending", base))
+
+	ctx, cancel := context.WithTimeout(context.Background(), testTimeout)
+	defer cancel()
+
+	all, err := repo.FindByUser(ctx, owner, false, 100)
+	if err != nil || len(all) != 3 {
+		t.Fatalf("FindByUser: %v, jumlah %d", err, len(all))
+	}
+	if _, err := repo.UpdateRead(ctx, owner, all[0].ID); err != nil {
+		t.Fatalf("tandai satu sudah dibaca: %v", err)
+	}
+
+	unreadOwner, err := repo.CountUnread(ctx, owner)
+	if err != nil || unreadOwner != 2 {
+		t.Fatalf("CountUnread owner = %d, %v; mau 2", unreadOwner, err)
+	}
+	unreadOther, err := repo.CountUnread(ctx, other)
+	if err != nil || unreadOther != 1 {
+		t.Fatalf("CountUnread other = %d, %v; mau 1", unreadOther, err)
+	}
+
+	updated, err := repo.UpdateAllRead(ctx, owner)
+	if err != nil {
+		t.Fatalf("UpdateAllRead: %v", err)
+	}
+	if updated != 2 {
+		t.Fatalf("UpdateAllRead mengubah %d dokumen, mau 2", updated)
+	}
+
+	unreadOwner, err = repo.CountUnread(ctx, owner)
+	if err != nil || unreadOwner != 0 {
+		t.Fatalf("CountUnread owner setelah read-all = %d, %v; mau 0", unreadOwner, err)
+	}
+	unreadOther, err = repo.CountUnread(ctx, other)
+	if err != nil || unreadOther != 1 {
+		t.Fatalf("notifikasi user lain ikut berubah: unread = %d, %v", unreadOther, err)
+	}
+
+	after, err := repo.FindByUser(ctx, owner, false, 100)
+	if err != nil {
+		t.Fatalf("FindByUser setelah read-all: %v", err)
+	}
+	for _, n := range after {
+		if !n.IsRead || n.ReadAt == nil {
+			t.Fatalf("notifikasi belum tertandai dibaca: %+v", n)
+		}
+		if n.CreatedAt.Location() != time.Local || n.ReadAt.Location() != time.Local {
+			t.Fatalf("waktu tidak dalam time.Local: created=%v read=%v", n.CreatedAt.Location(), n.ReadAt.Location())
+		}
+	}
+}
