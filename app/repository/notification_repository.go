@@ -123,7 +123,14 @@ func (r *notificationRepository) FindByUser(ctx context.Context, userID int, onl
 }
 
 func (r *notificationRepository) CountUnread(ctx context.Context, userID int) (int, error) {
-	return 0, ErrNotImplemented
+	count, err := r.collection().CountDocuments(ctx, bson.D{
+		{Key: "user_id", Value: userID},
+		{Key: "is_read", Value: false},
+	})
+	if err != nil {
+		return 0, TranslateMongoError(err)
+	}
+	return int(count), nil
 }
 
 func (r *notificationRepository) UpdateRead(ctx context.Context, userID int, id string) (model.Notification, error) {
