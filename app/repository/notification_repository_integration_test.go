@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 
 	"ruangku-backend/app/model"
 	"ruangku-backend/app/repository"
@@ -104,5 +105,37 @@ func TestInsertNotificationDuplicateAndIndexIdempotent(t *testing.T) {
 
 	if _, err := repository.NewNotificationRepository(db); err != nil {
 		t.Fatalf("membuat index dua kali: %v", err)
+	}
+}
+
+// C-I2
+func TestInsertNotificationConnectionFailureNotDuplicate(t *testing.T) {
+	env := testutil.Require(t)
+
+	ctx, cancel := context.WithTimeout(context.Background(), testTimeout)
+	defer cancel()
+
+	client, err := mongo.Connect(options.Client().
+		ApplyURI(env.MongoURI).
+		SetServerSelectionTimeout(2 * time.Second))
+	if err != nil {
+		t.Fatalf("konek mongo: %v", err)
+	}
+
+	db := client.Database(env.MongoDB)
+	repo, err := repository.NewNotificationRepository(db)
+	if err != nil {
+		t.Fatalf("buat repository: %v", err)
+	}
+	if err := client.Disconnect(ctx); err != nil {
+		t.Fatalf("putus koneksi: %v", err)
+	}
+
+	err = repo.InsertNotification(ctx, testNotification(nextID(), nextID(), "pending", time.Now()))
+	if err == nil {
+		t.Fatal("insert setelah koneksi ditutup seharusnya gagal")
+	}
+	if errors.Is(err, repository.ErrDuplicate) {
+		t.Fatalf("gagal koneksi dipetakan ke ErrDuplicate: %v", err)
 	}
 }
