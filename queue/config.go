@@ -21,6 +21,11 @@ type Config struct {
 	RedisDB     int
 	Queue       string
 	Concurrency int // hanya dibaca worker
+
+	// RetryDelay mengganti jeda antar-retry worker. Nil memakai backoff
+	// eksponensial bawaan Asynq (jeda pertama puluhan detik); hanya test yang
+	// perlu menggantinya.
+	RetryDelay asynq.RetryDelayFunc
 }
 
 // LoadConfig membaca REDIS_ADDR, REDIS_DB, dan WORKER_CONCURRENCY lewat
