@@ -1,6 +1,8 @@
 package service
 
 import (
+	"errors"
+
 	"github.com/gofiber/fiber/v2"
 
 	"ruangku-backend/app/repository"
@@ -55,7 +57,27 @@ func (s *notificationService) UnreadCount(c *fiber.Ctx) error {
 }
 
 func (s *notificationService) MarkRead(c *fiber.Ctx) error {
-	return helper.NotImplemented("fitur belum tersedia") // 501
+	ctx, cancel := helper.RequestContext(c)
+	defer cancel()
+
+	user, ok := helper.CurrentUser(c)
+	if !ok {
+		return helper.Unauthorized(messageInvalidToken)
+	}
+
+	id := c.Params("id")
+	if !IsNotificationID(id) {
+		return helper.BadRequest(messageNotificationIDInvalid)
+	}
+
+	notification, err := s.notifications.UpdateRead(ctx, user.ID, id)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return helper.NotFound(messageNotificationNotFound)
+		}
+		return helper.Internal(err)
+	}
+	return helper.Success(c, fiber.StatusOK, messageNotificationRead, notification)
 }
 
 func (s *notificationService) MarkAllRead(c *fiber.Ctx) error {
