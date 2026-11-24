@@ -15,6 +15,7 @@ import (
 	"ruangku-backend/config"
 	"ruangku-backend/database"
 	"ruangku-backend/helper"
+	"ruangku-backend/queue"
 	"ruangku-backend/route"
 )
 
@@ -50,18 +51,35 @@ func run() error {
 	}
 	defer pool.Close()
 
+	mongoDB, err := database.NewMongo(
+		context.Background(),
+		config.GetEnv("MONGO_URI", "mongodb://127.0.0.1:27017"),
+		config.GetEnv("MONGO_DB", "ruangku"),
+	)
+	if err != nil {
+		return err
+	}
+
+	producer := queue.NewProducer(queue.LoadConfig())
+	defer producer.Close()
+
 	txManager := repository.NewTxManager(pool)
 
 	userRepo := repository.NewUserRepository(pool)
 	roomRepo := repository.NewRoomRepository(pool)
 	bookingRepo := repository.NewBookingRepository(pool)
 	historyRepo := repository.NewHistoryRepository(pool)
+	notificationRepo, err := repository.NewNotificationRepository(mongoDB)
+	if err != nil {
+		return err
+	}
 
 	authService := service.NewAuthService(userRepo, jwtManager)
 	userService := service.NewUserService(userRepo)
 	roomService := service.NewRoomService(roomRepo)
-	bookingService := service.NewBookingService(bookingRepo, roomRepo, txManager)
+	bookingService := service.NewBookingService(bookingRepo, roomRepo, txManager, service.WithNotifier(producer))
 	historyService := service.NewHistoryService(historyRepo)
+	notificationService := service.NewNotificationService(notificationRepo)
 
 	err = authService.EnsureAdmin(
 		context.Background(),
@@ -75,13 +93,14 @@ func run() error {
 
 	app := config.NewApp()
 	route.Register(app, route.Dependencies{
-		Pool:    pool,
-		JWT:     jwtManager,
-		Auth:    authService,
-		User:    userService,
-		Room:    roomService,
-		Booking: bookingService,
-		History: historyService,
+		Pool:         pool,
+		JWT:          jwtManager,
+		Auth:         authService,
+		User:         userService,
+		Room:         roomService,
+		Booking:      bookingService,
+		History:      historyService,
+		Notification: notificationService,
 	})
 
 	serverErr := make(chan error, 1)
