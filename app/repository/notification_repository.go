@@ -134,7 +134,30 @@ func (r *notificationRepository) CountUnread(ctx context.Context, userID int) (i
 }
 
 func (r *notificationRepository) UpdateRead(ctx context.Context, userID int, id string) (model.Notification, error) {
-	return model.Notification{}, ErrNotImplemented
+	objectID, err := bson.ObjectIDFromHex(id)
+	if err != nil {
+		return model.Notification{}, ErrNotFound
+	}
+
+	// read_at hanya diisi sekali, jadi pemanggilan berulang tetap idempotent.
+	update := mongo.Pipeline{
+		bson.D{{Key: "$set", Value: bson.D{
+			{Key: "is_read", Value: true},
+			{Key: "read_at", Value: bson.D{{Key: "$ifNull", Value: bson.A{"$read_at", "$$NOW"}}}},
+		}}},
+	}
+
+	var doc notificationDoc
+	err = r.collection().FindOneAndUpdate(
+		ctx,
+		bson.D{{Key: "_id", Value: objectID}, {Key: "user_id", Value: userID}},
+		update,
+		options.FindOneAndUpdate().SetReturnDocument(options.After),
+	).Decode(&doc)
+	if err != nil {
+		return model.Notification{}, TranslateMongoError(err)
+	}
+	return doc.toModel(), nil
 }
 
 func (r *notificationRepository) UpdateAllRead(ctx context.Context, userID int) (int, error) {
