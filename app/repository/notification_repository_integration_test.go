@@ -139,3 +139,60 @@ func TestInsertNotificationConnectionFailureNotDuplicate(t *testing.T) {
 		t.Fatalf("gagal koneksi dipetakan ke ErrDuplicate: %v", err)
 	}
 }
+
+// C-I3
+func TestFindByUser(t *testing.T) {
+	repo, _ := newRepository(t)
+
+	owner, other := nextID(), nextID()
+	base := time.Now().Add(-time.Hour)
+
+	insert(t, repo, testNotification(owner, nextID(), "pending", base))
+	insert(t, repo, testNotification(owner, nextID(), "approved", base.Add(time.Minute)))
+	insert(t, repo, testNotification(owner, nextID(), "cancelled", base.Add(2*time.Minute)))
+	insert(t, repo, testNotification(other, nextID(), "pending", base))
+
+	ctx, cancel := context.WithTimeout(context.Background(), testTimeout)
+	defer cancel()
+
+	all, err := repo.FindByUser(ctx, owner, false, 100)
+	if err != nil {
+		t.Fatalf("FindByUser: %v", err)
+	}
+	if len(all) != 3 {
+		t.Fatalf("jumlah notifikasi = %d, mau 3", len(all))
+	}
+	if all[0].Status != "cancelled" {
+		t.Fatalf("urutan terbaru salah: dapat %q", all[0].Status)
+	}
+	for _, n := range all {
+		if n.UserID != owner {
+			t.Fatalf("notifikasi user lain ikut terbaca: user_id = %d", n.UserID)
+		}
+	}
+
+	if _, err := repo.UpdateRead(ctx, owner, all[0].ID); err != nil {
+		t.Fatalf("tandai satu sudah dibaca: %v", err)
+	}
+
+	unread, err := repo.FindByUser(ctx, owner, true, 100)
+	if err != nil {
+		t.Fatalf("FindByUser unread: %v", err)
+	}
+	if len(unread) != 2 {
+		t.Fatalf("jumlah belum dibaca = %d, mau 2", len(unread))
+	}
+
+	// Limit di atas 100 tetap dipotong ke 100.
+	capUser := nextID()
+	for i := 0; i < 101; i++ {
+		insert(t, repo, testNotification(capUser, nextID(), "pending", base.Add(time.Duration(i)*time.Second)))
+	}
+	limited, err := repo.FindByUser(ctx, capUser, false, 500)
+	if err != nil {
+		t.Fatalf("FindByUser limit: %v", err)
+	}
+	if len(limited) != 100 {
+		t.Fatalf("jumlah dengan limit 500 = %d, mau 100", len(limited))
+	}
+}
