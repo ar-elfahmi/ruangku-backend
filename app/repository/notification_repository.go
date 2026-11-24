@@ -76,7 +76,17 @@ func NewNotificationRepository(db *mongo.Database) (NotificationRepository, erro
 }
 
 func (r *notificationRepository) InsertNotification(ctx context.Context, n model.Notification) error {
-	return ErrNotImplemented
+	_, err := r.collection().InsertOne(ctx, notificationDoc{
+		UserID:    n.UserID,
+		BookingID: n.BookingID,
+		Status:    n.Status,
+		Title:     n.Title,
+		Message:   n.Message,
+		IsRead:    n.IsRead,
+		CreatedAt: n.CreatedAt,
+		ReadAt:    n.ReadAt,
+	})
+	return TranslateMongoError(err)
 }
 
 func (r *notificationRepository) FindByUser(ctx context.Context, userID int, onlyUnread bool, limit int) ([]model.Notification, error) {
@@ -93,6 +103,10 @@ func (r *notificationRepository) UpdateRead(ctx context.Context, userID int, id 
 
 func (r *notificationRepository) UpdateAllRead(ctx context.Context, userID int) (int, error) {
 	return 0, ErrNotImplemented
+}
+
+func (r *notificationRepository) collection() *mongo.Collection {
+	return r.db.Collection(notificationCollection)
 }
 
 var _ NotificationRepository = (*notificationRepository)(nil)
