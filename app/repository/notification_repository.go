@@ -6,11 +6,16 @@ import (
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 
 	"ruangku-backend/app/model"
 )
 
-const notificationCollection = "notifications"
+const (
+	notificationCollection = "notifications"
+
+	indexCreateTimeout = 10 * time.Second
+)
 
 // notificationDoc adalah bentuk dokumen di MongoDB. ObjectID dan zona waktu
 // dikonversi ke bentuk API oleh toModel.
@@ -48,10 +53,25 @@ type notificationRepository struct {
 	db *mongo.Database
 }
 
-// NewNotificationRepository membuat repository notifikasi. Index unik
-// (booking_id, status) dan index daftar per user dipasang secara idempotent
-// saat konstruksi pada C2.
+// NewNotificationRepository membuat repository notifikasi dan memasang index
+// secara idempotent: unik (booking_id, status) sebagai pengaman duplikat, dan
+// (user_id, created_at desc) untuk daftar per user.
 func NewNotificationRepository(db *mongo.Database) (NotificationRepository, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), indexCreateTimeout)
+	defer cancel()
+
+	indexes := []mongo.IndexModel{
+		{
+			Keys:    bson.D{{Key: "booking_id", Value: 1}, {Key: "status", Value: 1}},
+			Options: options.Index().SetUnique(true),
+		},
+		{
+			Keys: bson.D{{Key: "user_id", Value: 1}, {Key: "created_at", Value: -1}},
+		},
+	}
+	if _, err := db.Collection(notificationCollection).Indexes().CreateMany(ctx, indexes); err != nil {
+		return nil, TranslateMongoError(err)
+	}
 	return &notificationRepository{db: db}, nil
 }
 
