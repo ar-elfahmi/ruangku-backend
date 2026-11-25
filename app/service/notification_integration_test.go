@@ -271,3 +271,45 @@ func TestCA2_UnreadFilter(t *testing.T) {
 		}
 	}
 }
+
+// C-A3: GET /notifications/unread-count menghitung hanya notifikasi belum
+// dibaca milik pemanggil.
+func TestCA3_UnreadCount(t *testing.T) {
+	env := testutil.Require(t)
+	testutil.Canary(t, env)
+
+	db := notifDB(t, env)
+	owner := notifRegister(t, env, "ca3a")
+	other := notifRegister(t, env, "ca3b")
+	notifCleanup(t, db, owner.ID, other.ID)
+
+	base := time.Now().Add(-time.Hour)
+	notifInsert(t, db, owner.ID, "pending", false, base)
+	notifInsert(t, db, owner.ID, "approved", false, base.Add(time.Minute))
+	notifInsert(t, db, owner.ID, "cancelled", true, base.Add(2*time.Minute))
+	notifInsert(t, db, other.ID, "pending", false, base)
+
+	var count struct {
+		Count int `json:"count"`
+	}
+	if code := notifJSON(t, http.MethodGet, env.APIURL+notifPath+"/unread-count", owner.Token, nil, &count); code != http.StatusOK {
+		t.Fatalf("jumlah belum dibaca = %d, want 200", code)
+	}
+	if count.Count != 2 {
+		t.Fatalf("count = %d, want 2", count.Count)
+	}
+
+	var otherCount struct {
+		Count int `json:"count"`
+	}
+	if code := notifJSON(t, http.MethodGet, env.APIURL+notifPath+"/unread-count", other.Token, nil, &otherCount); code != http.StatusOK {
+		t.Fatalf("jumlah belum dibaca user lain = %d, want 200", code)
+	}
+	if otherCount.Count != 1 {
+		t.Fatalf("count user lain = %d, want 1", otherCount.Count)
+	}
+
+	if code := notifJSON(t, http.MethodGet, env.APIURL+notifPath+"/unread-count", "", nil, nil); code != http.StatusUnauthorized {
+		t.Fatalf("unread-count tanpa token = %d, want 401", code)
+	}
+}
