@@ -313,3 +313,53 @@ func TestCA3_UnreadCount(t *testing.T) {
 		t.Fatalf("unread-count tanpa token = %d, want 401", code)
 	}
 }
+
+// C-A4: PATCH /notifications/:id/read — 200 untuk milik sendiri dan
+// idempotent, 404 untuk milik user lain, 400 untuk id tidak valid.
+func TestCA4_MarkRead(t *testing.T) {
+	env := testutil.Require(t)
+	testutil.Canary(t, env)
+
+	db := notifDB(t, env)
+	owner := notifRegister(t, env, "ca4a")
+	other := notifRegister(t, env, "ca4b")
+	notifCleanup(t, db, owner.ID, other.ID)
+
+	base := time.Now().Add(-time.Hour)
+	ownID := notifInsert(t, db, owner.ID, "pending", false, base)
+	otherID := notifInsert(t, db, other.ID, "pending", false, base)
+
+	var first model.Notification
+	if code := notifJSON(t, http.MethodPatch, env.APIURL+notifPath+"/"+ownID+"/read", owner.Token, nil, &first); code != http.StatusOK {
+		t.Fatalf("tandai sudah dibaca = %d, want 200", code)
+	}
+	if first.ID != ownID {
+		t.Fatalf("id yang dikembalikan = %q, want %q", first.ID, ownID)
+	}
+	if !first.IsRead {
+		t.Fatal("is_read masih false setelah ditandai")
+	}
+	if first.ReadAt == nil {
+		t.Fatal("read_at kosong setelah ditandai")
+	}
+
+	var second model.Notification
+	if code := notifJSON(t, http.MethodPatch, env.APIURL+notifPath+"/"+ownID+"/read", owner.Token, nil, &second); code != http.StatusOK {
+		t.Fatalf("tandai ulang = %d, want 200", code)
+	}
+	if second.ReadAt == nil || !second.ReadAt.Equal(*first.ReadAt) {
+		t.Fatalf("read_at berubah pada pemanggilan kedua: first=%v second=%v", first.ReadAt, second.ReadAt)
+	}
+
+	if code := notifJSON(t, http.MethodPatch, env.APIURL+notifPath+"/"+otherID+"/read", owner.Token, nil, nil); code != http.StatusNotFound {
+		t.Fatalf("tandai notifikasi user lain = %d, want 404", code)
+	}
+
+	if code := notifJSON(t, http.MethodPatch, env.APIURL+notifPath+"/bukan-object-id/read", owner.Token, nil, nil); code != http.StatusBadRequest {
+		t.Fatalf("id tidak valid = %d, want 400", code)
+	}
+
+	if code := notifJSON(t, http.MethodPatch, env.APIURL+notifPath+"/"+ownID+"/read", "", nil, nil); code != http.StatusUnauthorized {
+		t.Fatalf("tandai tanpa token = %d, want 401", code)
+	}
+}
