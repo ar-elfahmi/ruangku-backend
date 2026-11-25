@@ -363,3 +363,58 @@ func TestCA4_MarkRead(t *testing.T) {
 		t.Fatalf("tandai tanpa token = %d, want 401", code)
 	}
 }
+
+// C-A5: PATCH /notifications/read-all 200, hanya mengubah milik pemanggil,
+// dan mengembalikan jumlah dokumen yang berubah.
+func TestCA5_MarkAllRead(t *testing.T) {
+	env := testutil.Require(t)
+	testutil.Canary(t, env)
+
+	db := notifDB(t, env)
+	owner := notifRegister(t, env, "ca5a")
+	other := notifRegister(t, env, "ca5b")
+	notifCleanup(t, db, owner.ID, other.ID)
+
+	base := time.Now().Add(-time.Hour)
+	notifInsert(t, db, owner.ID, "pending", false, base)
+	notifInsert(t, db, owner.ID, "approved", false, base.Add(time.Minute))
+	notifInsert(t, db, owner.ID, "cancelled", true, base.Add(2*time.Minute))
+	notifInsert(t, db, other.ID, "pending", false, base)
+
+	var result struct {
+		Updated int `json:"updated"`
+	}
+	if code := notifJSON(t, http.MethodPatch, env.APIURL+notifPath+"/read-all", owner.Token, nil, &result); code != http.StatusOK {
+		t.Fatalf("tandai semua = %d, want 200", code)
+	}
+	if result.Updated != 2 {
+		t.Fatalf("updated = %d, want 2", result.Updated)
+	}
+
+	var count struct {
+		Count int `json:"count"`
+	}
+	if code := notifJSON(t, http.MethodGet, env.APIURL+notifPath+"/unread-count", owner.Token, nil, &count); code != http.StatusOK {
+		t.Fatalf("jumlah belum dibaca = %d, want 200", code)
+	}
+	if count.Count != 0 {
+		t.Fatalf("count setelah read-all = %d, want 0", count.Count)
+	}
+
+	var otherCount struct {
+		Count int `json:"count"`
+	}
+	if code := notifJSON(t, http.MethodGet, env.APIURL+notifPath+"/unread-count", other.Token, nil, &otherCount); code != http.StatusOK {
+		t.Fatalf("jumlah belum dibaca user lain = %d, want 200", code)
+	}
+	if otherCount.Count != 1 {
+		t.Fatalf("count user lain = %d, want 1 (tidak boleh ikut berubah)", otherCount.Count)
+	}
+
+	if code := notifJSON(t, http.MethodPatch, env.APIURL+notifPath+"/read-all", owner.Token, nil, &result); code != http.StatusOK {
+		t.Fatalf("tandai semua ulang = %d, want 200", code)
+	}
+	if result.Updated != 0 {
+		t.Fatalf("updated pada pemanggilan kedua = %d, want 0", result.Updated)
+	}
+}
