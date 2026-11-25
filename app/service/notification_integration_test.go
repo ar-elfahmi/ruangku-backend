@@ -228,3 +228,46 @@ func TestCA1_ListOnlyOwnNotifications(t *testing.T) {
 		t.Fatalf("daftar tanpa token = %d, want 401", code)
 	}
 }
+
+// C-A2: ?is_read=false hanya mengembalikan yang belum dibaca; nilai selain
+// kosong dan false ditolak 400.
+func TestCA2_UnreadFilter(t *testing.T) {
+	env := testutil.Require(t)
+	testutil.Canary(t, env)
+
+	db := notifDB(t, env)
+	owner := notifRegister(t, env, "ca2")
+	notifCleanup(t, db, owner.ID)
+
+	base := time.Now().Add(-time.Hour)
+	notifInsert(t, db, owner.ID, "pending", false, base)
+	notifInsert(t, db, owner.ID, "approved", false, base.Add(time.Minute))
+	notifInsert(t, db, owner.ID, "cancelled", true, base.Add(2*time.Minute))
+
+	var unread []model.Notification
+	if code := notifJSON(t, http.MethodGet, env.APIURL+notifPath+"?is_read=false", owner.Token, nil, &unread); code != http.StatusOK {
+		t.Fatalf("filter belum dibaca = %d, want 200", code)
+	}
+	if len(unread) != 2 {
+		t.Fatalf("jumlah belum dibaca = %d, want 2", len(unread))
+	}
+	for _, n := range unread {
+		if n.IsRead {
+			t.Fatalf("notifikasi sudah dibaca ikut terfilter: id = %s", n.ID)
+		}
+	}
+
+	var all []model.Notification
+	if code := notifJSON(t, http.MethodGet, env.APIURL+notifPath, owner.Token, nil, &all); code != http.StatusOK {
+		t.Fatalf("daftar tanpa filter = %d, want 200", code)
+	}
+	if len(all) != 3 {
+		t.Fatalf("jumlah tanpa filter = %d, want 3", len(all))
+	}
+
+	for _, invalid := range []string{"true", "0", "semua"} {
+		if code := notifJSON(t, http.MethodGet, env.APIURL+notifPath+"?is_read="+invalid, owner.Token, nil, nil); code != http.StatusBadRequest {
+			t.Fatalf("is_read=%q = %d, want 400", invalid, code)
+		}
+	}
+}
