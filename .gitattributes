@@ -1,0 +1,15 @@
+# Normalize every text file to LF in the repository and in checkouts, so
+# gofmt -l produces the same result on Windows and on the Linux CI runner.
+* text=auto eol=lf
+
+# Go files must always be LF; gofmt also requires a trailing newline.
+*.go text eol=lf
+
+# Never normalize binary files.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
