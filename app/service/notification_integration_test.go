@@ -18,6 +18,7 @@ package service_test
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -130,6 +131,22 @@ func notifRegister(t *testing.T, env testutil.Env, label string) notifAccount {
 	}
 
 	return notifAccount{ID: user.ID, Email: email, Token: notifLogin(t, env, email, "rahasia123")}
+}
+
+// notifAdminToken login sebagai admin memakai TEST_ADMIN_*.
+func notifAdminToken(t *testing.T, env testutil.Env) string {
+	t.Helper()
+	return notifLogin(t, env, env.AdminEmail, env.AdminPassword)
+}
+
+// notifPromote mengubah role user lewat API admin.
+func notifPromote(t *testing.T, env testutil.Env, adminToken string, userID int, role string) {
+	t.Helper()
+
+	url := fmt.Sprintf("%s/api/v1/users/%d/role", env.APIURL, userID)
+	if code := notifJSON(t, http.MethodPatch, url, adminToken, map[string]string{"role": role}, nil); code != http.StatusOK {
+		t.Fatalf("ubah role user %d = %d, want 200", userID, code)
+	}
 }
 
 // notifDB membuka koneksi Mongo test dan menutupnya saat test selesai.
@@ -416,5 +433,53 @@ func TestCA5_MarkAllRead(t *testing.T) {
 	}
 	if result.Updated != 0 {
 		t.Fatalf("updated pada pemanggilan kedua = %d, want 0", result.Updated)
+	}
+}
+
+// C-A6: akses — peminjam hanya melihat notifikasi miliknya; pengelola tidak
+// melihat notifikasi peminjam dan tidak bisa menandainya dibaca.
+func TestCA6_AccessControl(t *testing.T) {
+	env := testutil.Require(t)
+	testutil.Canary(t, env)
+
+	db := notifDB(t, env)
+	borrower := notifRegister(t, env, "ca6a")
+	manager := notifRegister(t, env, "ca6b")
+	notifCleanup(t, db, borrower.ID, manager.ID)
+
+	base := time.Now().Add(-time.Hour)
+	borrowerNotification := notifInsert(t, db, borrower.ID, "pending", false, base)
+
+	notifPromote(t, env, notifAdminToken(t, env), manager.ID, model.RolePengelola)
+	managerToken := notifLogin(t, env, manager.Email, "rahasia123")
+
+	var mine []model.Notification
+	if code := notifJSON(t, http.MethodGet, env.APIURL+notifPath, borrower.Token, nil, &mine); code != http.StatusOK {
+		t.Fatalf("daftar peminjam = %d, want 200", code)
+	}
+	if len(mine) != 1 || mine[0].ID != borrowerNotification {
+		t.Fatalf("peminjam harus melihat 1 notifikasi miliknya, dapat %d", len(mine))
+	}
+
+	var managerList []model.Notification
+	if code := notifJSON(t, http.MethodGet, env.APIURL+notifPath, managerToken, nil, &managerList); code != http.StatusOK {
+		t.Fatalf("daftar pengelola = %d, want 200", code)
+	}
+	if len(managerList) != 0 {
+		t.Fatalf("pengelola melihat %d notifikasi peminjam, want 0", len(managerList))
+	}
+
+	var managerCount struct {
+		Count int `json:"count"`
+	}
+	if code := notifJSON(t, http.MethodGet, env.APIURL+notifPath+"/unread-count", managerToken, nil, &managerCount); code != http.StatusOK {
+		t.Fatalf("unread-count pengelola = %d, want 200", code)
+	}
+	if managerCount.Count != 0 {
+		t.Fatalf("unread-count pengelola = %d, want 0", managerCount.Count)
+	}
+
+	if code := notifJSON(t, http.MethodPatch, env.APIURL+notifPath+"/"+borrowerNotification+"/read", managerToken, nil, nil); code != http.StatusNotFound {
+		t.Fatalf("pengelola menandai notifikasi peminjam = %d, want 404", code)
 	}
 }
