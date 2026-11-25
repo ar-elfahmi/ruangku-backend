@@ -1,0 +1,87 @@
+@baseUrl = http://localhost:8080/api/v1
+@andiToken = {{loginAndi.response.body.data.access_token}}
+@budiToken = {{loginBudi.response.body.data.access_token}}
+@pengelolaToken = {{loginPengelola.response.body.data.access_token}}
+@notificationId = {{listUnread.response.body.data.0.id}}
+
+# Notification API requests (C-A1 to C-A6). Run this file after
+# http/bookings.http BK-01 to BK-12 with the worker running, so Andi already
+# has notifications. It reuses the same *.bk users as that file.
+
+### Setup: login Andi as peminjam
+# @name loginAndi
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "email": "andi.bk@kampus.ac.id", "password": "rahasia123" }
+
+### Setup: login Budi as another peminjam
+# @name loginBudi
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "email": "budi.bk@kampus.ac.id", "password": "rahasia123" }
+
+### Setup: login Citra as pengelola
+# @name loginPengelola
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "email": "citra.bk@kampus.ac.id", "password": "rahasia123" }
+
+### C-A1 owner sees only their own notifications, newest first → 200
+GET {{baseUrl}}/notifications
+Authorization: Bearer {{andiToken}}
+
+### C-A1 without a token → 401
+GET {{baseUrl}}/notifications
+
+### C-A2 only unread notifications → 200
+# @name listUnread
+GET {{baseUrl}}/notifications?is_read=false
+Authorization: Bearer {{andiToken}}
+
+### C-A2 is_read=true is not part of the contract → 400
+GET {{baseUrl}}/notifications?is_read=true
+Authorization: Bearer {{andiToken}}
+
+### C-A2 is_read=0 is not a boolean → 400
+GET {{baseUrl}}/notifications?is_read=0
+Authorization: Bearer {{andiToken}}
+
+### C-A3 unread count → 200 (data.count)
+GET {{baseUrl}}/notifications/unread-count
+Authorization: Bearer {{andiToken}}
+
+### Setup: Budi's notification id, used by the C-A4 ownership check
+# @name listBudi
+GET {{baseUrl}}/notifications
+Authorization: Bearer {{budiToken}}
+
+### C-A4 mark own notification as read → 200
+PATCH {{baseUrl}}/notifications/{{notificationId}}/read
+Authorization: Bearer {{andiToken}}
+
+### C-A4 marking another user's notification → 404
+PATCH {{baseUrl}}/notifications/{{listBudi.response.body.data.0.id}}/read
+Authorization: Bearer {{andiToken}}
+
+### C-A4 invalid notification id → 400
+PATCH {{baseUrl}}/notifications/bukan-object-id/read
+Authorization: Bearer {{andiToken}}
+
+### C-A5 mark all own notifications as read → 200 (data.updated)
+PATCH {{baseUrl}}/notifications/read-all
+Authorization: Bearer {{andiToken}}
+
+### C-A6 pengelola does not see borrowers' notifications → 200, empty list
+GET {{baseUrl}}/notifications
+Authorization: Bearer {{pengelolaToken}}
+
+### C-A6 pengelola unread count stays zero → 200 (data.count = 0)
+GET {{baseUrl}}/notifications/unread-count
+Authorization: Bearer {{pengelolaToken}}
+
+### C-A6 pengelola cannot mark a borrower's notification → 404
+PATCH {{baseUrl}}/notifications/{{notificationId}}/read
+Authorization: Bearer {{pengelolaToken}}
