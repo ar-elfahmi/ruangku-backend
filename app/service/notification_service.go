@@ -1,6 +1,8 @@
 package service
 
 import (
+	"errors"
+
 	"github.com/gofiber/fiber/v2"
 
 	"ruangku-backend/app/repository"
@@ -18,19 +20,80 @@ func NewNotificationService(r repository.NotificationRepository) NotificationSer
 }
 
 func (s *notificationService) List(c *fiber.Ctx) error {
-	return helper.NotImplemented("fitur belum tersedia") // 501
+	ctx, cancel := helper.RequestContext(c)
+	defer cancel()
+
+	user, ok := helper.CurrentUser(c)
+	if !ok {
+		return helper.Unauthorized(messageInvalidToken)
+	}
+
+	onlyUnread, err := ParseUnreadFilter(c.Query("is_read"))
+	if err != nil {
+		return err
+	}
+
+	notifications, err := s.notifications.FindByUser(ctx, user.ID, onlyUnread, notificationListLimit)
+	if err != nil {
+		return helper.Internal(err)
+	}
+	return helper.Success(c, fiber.StatusOK, messageNotificationList, notifications)
 }
 
 func (s *notificationService) UnreadCount(c *fiber.Ctx) error {
-	return helper.NotImplemented("fitur belum tersedia") // 501
+	ctx, cancel := helper.RequestContext(c)
+	defer cancel()
+
+	user, ok := helper.CurrentUser(c)
+	if !ok {
+		return helper.Unauthorized(messageInvalidToken)
+	}
+
+	count, err := s.notifications.CountUnread(ctx, user.ID)
+	if err != nil {
+		return helper.Internal(err)
+	}
+	return helper.Success(c, fiber.StatusOK, messageNotificationUnread, fiber.Map{"count": count})
 }
 
 func (s *notificationService) MarkRead(c *fiber.Ctx) error {
-	return helper.NotImplemented("fitur belum tersedia") // 501
+	ctx, cancel := helper.RequestContext(c)
+	defer cancel()
+
+	user, ok := helper.CurrentUser(c)
+	if !ok {
+		return helper.Unauthorized(messageInvalidToken)
+	}
+
+	id := c.Params("id")
+	if !IsNotificationID(id) {
+		return helper.BadRequest(messageNotificationIDInvalid)
+	}
+
+	notification, err := s.notifications.UpdateRead(ctx, user.ID, id)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return helper.NotFound(messageNotificationNotFound)
+		}
+		return helper.Internal(err)
+	}
+	return helper.Success(c, fiber.StatusOK, messageNotificationRead, notification)
 }
 
 func (s *notificationService) MarkAllRead(c *fiber.Ctx) error {
-	return helper.NotImplemented("fitur belum tersedia") // 501
+	ctx, cancel := helper.RequestContext(c)
+	defer cancel()
+
+	user, ok := helper.CurrentUser(c)
+	if !ok {
+		return helper.Unauthorized(messageInvalidToken)
+	}
+
+	updated, err := s.notifications.UpdateAllRead(ctx, user.ID)
+	if err != nil {
+		return helper.Internal(err)
+	}
+	return helper.Success(c, fiber.StatusOK, messageNotificationReadAll, fiber.Map{"updated": updated})
 }
 
 var _ NotificationService = (*notificationService)(nil)
