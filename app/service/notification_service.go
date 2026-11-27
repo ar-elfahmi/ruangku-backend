@@ -74,6 +74,17 @@ func (s *notificationService) UnreadCount(c *fiber.Ctx) error {
 	return helper.Success(c, fiber.StatusOK, messageNotificationUnread, fiber.Map{"count": count})
 }
 
+// MarkRead menandai satu notifikasi milik pemanggil sebagai sudah dibaca.
+//
+//	@Summary		Tandai notifikasi sudah dibaca
+//	@Tags			notifications
+//	@Security		BearerAuth
+//	@Param			id	path	string	true	"ObjectID notifikasi"
+//	@Success		200	{object}	model.WebResponse{data=model.Notification}
+//	@Failure		400	{object}	model.WebResponse
+//	@Failure		401	{object}	model.WebResponse
+//	@Failure		404	{object}	model.WebResponse
+//	@Router			/notifications/{id}/read [patch]
 func (s *notificationService) MarkRead(c *fiber.Ctx) error {
 	ctx, cancel := helper.RequestContext(c)
 	defer cancel()
@@ -98,6 +109,14 @@ func (s *notificationService) MarkRead(c *fiber.Ctx) error {
 	return helper.Success(c, fiber.StatusOK, messageNotificationRead, notification)
 }
 
+// MarkAllRead menandai semua notifikasi milik pemanggil sebagai sudah dibaca.
+//
+//	@Summary		Tandai semua notifikasi sudah dibaca
+//	@Tags			notifications
+//	@Security		BearerAuth
+//	@Success		200	{object}	model.WebResponse{data=map[string]int}
+//	@Failure		401	{object}	model.WebResponse
+//	@Router			/notifications/read-all [patch]
 func (s *notificationService) MarkAllRead(c *fiber.Ctx) error {
 	ctx, cancel := helper.RequestContext(c)
 	defer cancel()
