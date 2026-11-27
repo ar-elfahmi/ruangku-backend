@@ -18,6 +18,20 @@ func NewUserService(u repository.UserRepository) UserService {
 	return &userService{users: u}
 }
 
+// ChangeRole mengubah role user; hanya admin.
+//
+//	@Summary		Ubah role user
+//	@Tags			users
+//	@Security		BearerAuth
+//	@Param			id		path	int						true	"ID user"
+//	@Param			request	body	model.ChangeRoleRequest	true	"Role baru"
+//	@Success		200		{object}	model.WebResponse{data=model.User}
+//	@Failure		400		{object}	model.WebResponse
+//	@Failure		401		{object}	model.WebResponse
+//	@Failure		403		{object}	model.WebResponse
+//	@Failure		404		{object}	model.WebResponse
+//	@Failure		422		{object}	model.WebResponse
+//	@Router			/users/{id}/role [patch]
 func (s *userService) ChangeRole(c *fiber.Ctx) error {
 	ctx, cancel := helper.RequestContext(c)
 	defer cancel()

@@ -19,6 +19,16 @@ func NewNotificationService(r repository.NotificationRepository) NotificationSer
 	return &notificationService{notifications: r}
 }
 
+// List mengembalikan notifikasi milik user yang sedang login, terbaru dulu.
+//
+//	@Summary		Daftar notifikasi
+//	@Tags			notifications
+//	@Security		BearerAuth
+//	@Param			is_read	query	string	false	"Isi false untuk hanya menampilkan yang belum dibaca"
+//	@Success		200		{object}	model.WebResponse{data=[]model.Notification}
+//	@Failure		400		{object}	model.WebResponse
+//	@Failure		401		{object}	model.WebResponse
+//	@Router			/notifications [get]
 func (s *notificationService) List(c *fiber.Ctx) error {
 	ctx, cancel := helper.RequestContext(c)
 	defer cancel()
@@ -40,6 +50,14 @@ func (s *notificationService) List(c *fiber.Ctx) error {
 	return helper.Success(c, fiber.StatusOK, messageNotificationList, notifications)
 }
 
+// UnreadCount mengembalikan jumlah notifikasi belum dibaca milik pemanggil.
+//
+//	@Summary		Jumlah notifikasi belum dibaca
+//	@Tags			notifications
+//	@Security		BearerAuth
+//	@Success		200	{object}	model.WebResponse{data=map[string]int}
+//	@Failure		401	{object}	model.WebResponse
+//	@Router			/notifications/unread-count [get]
 func (s *notificationService) UnreadCount(c *fiber.Ctx) error {
 	ctx, cancel := helper.RequestContext(c)
 	defer cancel()
