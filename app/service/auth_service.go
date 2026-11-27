@@ -136,6 +136,14 @@ func (s *authService) Login(c *fiber.Ctx) error {
 	return helper.Success(c, fiber.StatusOK, "login berhasil", response)
 }
 
+// Me mengembalikan profil user yang sedang login.
+//
+//	@Summary		Profil user yang sedang login
+//	@Tags			auth
+//	@Security		BearerAuth
+//	@Success		200	{object}	model.WebResponse{data=model.User}
+//	@Failure		401	{object}	model.WebResponse
+//	@Router			/auth/me [get]
 func (s *authService) Me(c *fiber.Ctx) error {
 	ctx, cancel := helper.RequestContext(c)
 	defer cancel()
