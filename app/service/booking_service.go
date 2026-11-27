@@ -64,6 +64,20 @@ func notifyBookingStatus(n NotificationEnqueuer, e model.BookingStatusEvent) {
 	}
 }
 
+// Create mengajukan peminjaman baru untuk peminjam yang sedang login.
+//
+//	@Summary		Ajukan peminjaman
+//	@Tags			bookings
+//	@Security		BearerAuth
+//	@Param			request	body	model.CreateBookingRequest	true	"Data peminjaman"
+//	@Success		201		{object}	model.WebResponse{data=model.Booking}
+//	@Failure		400		{object}	model.WebResponse
+//	@Failure		401		{object}	model.WebResponse
+//	@Failure		403		{object}	model.WebResponse
+//	@Failure		404		{object}	model.WebResponse
+//	@Failure		409		{object}	model.WebResponse
+//	@Failure		422		{object}	model.WebResponse
+//	@Router			/bookings [post]
 func (s *bookingService) Create(c *fiber.Ctx) error {
 	ctx, cancel := helper.RequestContext(c)
 	defer cancel()
@@ -129,14 +143,59 @@ func (s *bookingService) Create(c *fiber.Ctx) error {
 	return helper.Created(c, "peminjaman berhasil diajukan", created, "")
 }
 
+// Cancel membatalkan peminjaman milik peminjam.
+//
+//	@Summary		Batalkan peminjaman
+//	@Tags			bookings
+//	@Security		BearerAuth
+//	@Param			id		path	int							true	"ID peminjaman"
+//	@Param			request	body	model.StatusChangeRequest	false	"Catatan pembatalan (opsional)"
+//	@Success		200		{object}	model.WebResponse{data=model.Booking}
+//	@Failure		400		{object}	model.WebResponse
+//	@Failure		401		{object}	model.WebResponse
+//	@Failure		403		{object}	model.WebResponse
+//	@Failure		404		{object}	model.WebResponse
+//	@Failure		409		{object}	model.WebResponse
+//	@Failure		422		{object}	model.WebResponse
+//	@Router			/bookings/{id}/cancel [patch]
 func (s *bookingService) Cancel(c *fiber.Ctx) error {
 	return s.changeStatus(c, model.StatusCancelled, "peminjaman berhasil dibatalkan")
 }
 
+// Approve menyetujui peminjaman; hanya pengelola.
+//
+//	@Summary		Setujui peminjaman
+//	@Tags			bookings
+//	@Security		BearerAuth
+//	@Param			id		path	int							true	"ID peminjaman"
+//	@Param			request	body	model.StatusChangeRequest	false	"Catatan persetujuan (opsional)"
+//	@Success		200		{object}	model.WebResponse{data=model.Booking}
+//	@Failure		400		{object}	model.WebResponse
+//	@Failure		401		{object}	model.WebResponse
+//	@Failure		403		{object}	model.WebResponse
+//	@Failure		404		{object}	model.WebResponse
+//	@Failure		409		{object}	model.WebResponse
+//	@Failure		422		{object}	model.WebResponse
+//	@Router			/bookings/{id}/approve [patch]
 func (s *bookingService) Approve(c *fiber.Ctx) error {
 	return s.changeStatus(c, model.StatusApproved, "peminjaman berhasil disetujui")
 }
 
+// Reject menolak peminjaman; hanya pengelola.
+//
+//	@Summary		Tolak peminjaman
+//	@Tags			bookings
+//	@Security		BearerAuth
+//	@Param			id		path	int							true	"ID peminjaman"
+//	@Param			request	body	model.StatusChangeRequest	false	"Catatan penolakan (opsional)"
+//	@Success		200		{object}	model.WebResponse{data=model.Booking}
+//	@Failure		400		{object}	model.WebResponse
+//	@Failure		401		{object}	model.WebResponse
+//	@Failure		403		{object}	model.WebResponse
+//	@Failure		404		{object}	model.WebResponse
+//	@Failure		409		{object}	model.WebResponse
+//	@Failure		422		{object}	model.WebResponse
+//	@Router			/bookings/{id}/reject [patch]
 func (s *bookingService) Reject(c *fiber.Ctx) error {
 	return s.changeStatus(c, model.StatusRejected, "peminjaman berhasil ditolak")
 }
@@ -218,6 +277,18 @@ func (s *bookingService) changeStatus(c *fiber.Ctx, target, successMessage strin
 	return helper.Success(c, fiber.StatusOK, successMessage, updated)
 }
 
+// Logs menampilkan riwayat perubahan status sebuah peminjaman.
+//
+//	@Summary		Riwayat status peminjaman
+//	@Tags			bookings
+//	@Security		BearerAuth
+//	@Param			id	path	int	true	"ID peminjaman"
+//	@Success		200	{object}	model.WebResponse{data=[]model.BookingLog}
+//	@Failure		400	{object}	model.WebResponse
+//	@Failure		401	{object}	model.WebResponse
+//	@Failure		403	{object}	model.WebResponse
+//	@Failure		404	{object}	model.WebResponse
+//	@Router			/bookings/{id}/logs [get]
 func (s *bookingService) Logs(c *fiber.Ctx) error {
 	ctx, cancel := helper.RequestContext(c)
 	defer cancel()

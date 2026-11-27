@@ -45,6 +45,15 @@ func NewSessionService(r repository.RefreshTokenRepository, refresh *helper.Refr
 }
 
 // Refresh menangani POST /auth/refresh: rotasi single-use dengan deteksi reuse.
+//
+//	@Summary		Perbarui access token
+//	@Tags			auth
+//	@Param			request	body	model.RefreshRequest	true	"Refresh token"
+//	@Success		200		{object}	model.WebResponse{data=model.TokenResponse}
+//	@Failure		400		{object}	model.WebResponse
+//	@Failure		401		{object}	model.WebResponse
+//	@Failure		422		{object}	model.WebResponse
+//	@Router			/auth/refresh [post]
 func (s *sessionService) Refresh(c *fiber.Ctx) error {
 	ctx, cancel := helper.RequestContext(c)
 	defer cancel()
@@ -177,6 +186,18 @@ func (s *sessionService) refreshTTL() time.Duration {
 	return time.Duration(s.refresh.TTLSeconds()) * time.Second
 }
 
+// Logout mencabut keluarga refresh token milik user yang sedang login.
+//
+//	@Summary		Logout
+//	@Tags			auth
+//	@Security		BearerAuth
+//	@Param			request	body	model.RefreshRequest	true	"Refresh token yang akan dicabut"
+//	@Success		204		"Refresh token dicabut"
+//	@Failure		400		{object}	model.WebResponse
+//	@Failure		401		{object}	model.WebResponse
+//	@Failure		403		{object}	model.WebResponse
+//	@Failure		422		{object}	model.WebResponse
+//	@Router			/auth/logout [post]
 func (s *sessionService) Logout(c *fiber.Ctx) error {
 	ctx, cancel := helper.RequestContext(c)
 	defer cancel()
