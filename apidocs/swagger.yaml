@@ -1,0 +1,1102 @@
+basePath: /api/v1
+definitions:
+  model.Availability:
+    properties:
+      booked:
+        items:
+          $ref: '#/definitions/model.TimeSlot'
+        type: array
+      date:
+        type: string
+      room:
+        $ref: '#/definitions/model.Room'
+    type: object
+  model.Booking:
+    properties:
+      created_at:
+        type: string
+      end_time:
+        type: string
+      id:
+        type: integer
+      purpose:
+        type: string
+      room_id:
+        type: integer
+      start_time:
+        type: string
+      status:
+        type: string
+      user_id:
+        type: integer
+    type: object
+  model.BookingLog:
+    properties:
+      actor_id:
+        type: integer
+      booking_id:
+        type: integer
+      created_at:
+        type: string
+      from_status:
+        type: string
+      id:
+        type: integer
+      note:
+        type: string
+      to_status:
+        type: string
+    type: object
+  model.ChangeRoleRequest:
+    properties:
+      role:
+        enum:
+        - admin
+        - pengelola
+        - peminjam
+        type: string
+    required:
+    - role
+    type: object
+  model.CreateBookingRequest:
+    properties:
+      end_time:
+        type: string
+      purpose:
+        maxLength: 255
+        type: string
+      room_id:
+        minimum: 1
+        type: integer
+      start_time:
+        type: string
+    required:
+    - end_time
+    - purpose
+    - room_id
+    - start_time
+    type: object
+  model.LoginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  model.Notification:
+    properties:
+      booking_id:
+        type: integer
+      created_at:
+        type: string
+      id:
+        description: ObjectID hex
+        type: string
+      is_read:
+        type: boolean
+      message:
+        type: string
+      read_at:
+        type: string
+      status:
+        type: string
+      title:
+        type: string
+      user_id:
+        description: pemilik booking
+        type: integer
+    type: object
+  model.RefreshRequest:
+    properties:
+      refresh_token:
+        type: string
+    required:
+    - refresh_token
+    type: object
+  model.RegisterRequest:
+    properties:
+      email:
+        type: string
+      name:
+        maxLength: 100
+        type: string
+      password:
+        minLength: 8
+        type: string
+    required:
+    - email
+    - name
+    - password
+    type: object
+  model.Room:
+    properties:
+      building:
+        type: string
+      capacity:
+        type: integer
+      code:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      is_active:
+        type: boolean
+      name:
+        type: string
+    type: object
+  model.RoomRequest:
+    properties:
+      building:
+        maxLength: 100
+        type: string
+      capacity:
+        maximum: 1000
+        minimum: 1
+        type: integer
+      code:
+        maxLength: 20
+        type: string
+      name:
+        maxLength: 100
+        type: string
+    required:
+    - building
+    - capacity
+    - code
+    - name
+    type: object
+  model.StatusChangeRequest:
+    properties:
+      note:
+        maxLength: 255
+        type: string
+    type: object
+  model.TimeSlot:
+    properties:
+      booking_id:
+        type: integer
+      end_time:
+        type: string
+      start_time:
+        type: string
+      status:
+        type: string
+    type: object
+  model.TokenResponse:
+    properties:
+      access_token:
+        type: string
+      expires_in:
+        type: integer
+      refresh_expires_in:
+        type: integer
+      refresh_token:
+        type: string
+    type: object
+  model.User:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      role:
+        type: string
+    type: object
+  model.WebResponse:
+    properties:
+      data: {}
+      errors: {}
+      message:
+        type: string
+      meta: {}
+      success:
+        type: boolean
+    type: object
+info:
+  contact: {}
+  description: 'API peminjaman ruang kampus: autentikasi, ruang, peminjaman, riwayat,
+    notifikasi, dan refresh token. Semua endpoint berada di bawah /api/v1.'
+  title: RuangKu Backend API
+  version: "1.0"
+paths:
+  /auth/login:
+    post:
+      parameters:
+      - description: Email dan password
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.LoginRequest'
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/model.WebResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.TokenResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+      summary: Login
+      tags:
+      - auth
+  /auth/logout:
+    post:
+      parameters:
+      - description: Refresh token yang akan dicabut
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.RefreshRequest'
+      responses:
+        "204":
+          description: Refresh token dicabut
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+      security:
+      - BearerAuth: []
+      summary: Logout
+      tags:
+      - auth
+  /auth/me:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/model.WebResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.User'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+      security:
+      - BearerAuth: []
+      summary: Profil user yang sedang login
+      tags:
+      - auth
+  /auth/refresh:
+    post:
+      parameters:
+      - description: Refresh token
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.RefreshRequest'
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/model.WebResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.TokenResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+      summary: Perbarui access token
+      tags:
+      - auth
+  /auth/register:
+    post:
+      parameters:
+      - description: Data registrasi
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.RegisterRequest'
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/model.WebResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.User'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+      summary: Registrasi user
+      tags:
+      - auth
+  /bookings:
+    get:
+      parameters:
+      - description: 'Filter status: pending, approved, rejected, cancelled'
+        in: query
+        name: status
+        type: string
+      - description: Filter ID ruang
+        in: query
+        name: room_id
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/model.WebResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/model.Booking'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+      security:
+      - BearerAuth: []
+      summary: Semua riwayat peminjaman
+      tags:
+      - bookings
+    post:
+      parameters:
+      - description: Data peminjaman
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.CreateBookingRequest'
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/model.WebResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.Booking'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+      security:
+      - BearerAuth: []
+      summary: Ajukan peminjaman
+      tags:
+      - bookings
+  /bookings/{id}/approve:
+    patch:
+      parameters:
+      - description: ID peminjaman
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Catatan persetujuan (opsional)
+        in: body
+        name: request
+        schema:
+          $ref: '#/definitions/model.StatusChangeRequest'
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/model.WebResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.Booking'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+      security:
+      - BearerAuth: []
+      summary: Setujui peminjaman
+      tags:
+      - bookings
+  /bookings/{id}/cancel:
+    patch:
+      parameters:
+      - description: ID peminjaman
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Catatan pembatalan (opsional)
+        in: body
+        name: request
+        schema:
+          $ref: '#/definitions/model.StatusChangeRequest'
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/model.WebResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.Booking'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+      security:
+      - BearerAuth: []
+      summary: Batalkan peminjaman
+      tags:
+      - bookings
+  /bookings/{id}/logs:
+    get:
+      parameters:
+      - description: ID peminjaman
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/model.WebResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/model.BookingLog'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+      security:
+      - BearerAuth: []
+      summary: Riwayat status peminjaman
+      tags:
+      - bookings
+  /bookings/{id}/reject:
+    patch:
+      parameters:
+      - description: ID peminjaman
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Catatan penolakan (opsional)
+        in: body
+        name: request
+        schema:
+          $ref: '#/definitions/model.StatusChangeRequest'
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/model.WebResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.Booking'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+      security:
+      - BearerAuth: []
+      summary: Tolak peminjaman
+      tags:
+      - bookings
+  /bookings/mine:
+    get:
+      parameters:
+      - description: 'Filter status: pending, approved, rejected, cancelled'
+        in: query
+        name: status
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/model.WebResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/model.Booking'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+      security:
+      - BearerAuth: []
+      summary: Riwayat peminjaman milik peminjam
+      tags:
+      - bookings
+  /notifications:
+    get:
+      parameters:
+      - description: Isi false untuk hanya menampilkan yang belum dibaca
+        in: query
+        name: is_read
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/model.WebResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/model.Notification'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+      security:
+      - BearerAuth: []
+      summary: Daftar notifikasi
+      tags:
+      - notifications
+  /notifications/{id}/read:
+    patch:
+      parameters:
+      - description: ObjectID notifikasi
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/model.WebResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.Notification'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+      security:
+      - BearerAuth: []
+      summary: Tandai notifikasi sudah dibaca
+      tags:
+      - notifications
+  /notifications/read-all:
+    patch:
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/model.WebResponse'
+            - properties:
+                data:
+                  additionalProperties:
+                    type: integer
+                  type: object
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+      security:
+      - BearerAuth: []
+      summary: Tandai semua notifikasi sudah dibaca
+      tags:
+      - notifications
+  /notifications/unread-count:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/model.WebResponse'
+            - properties:
+                data:
+                  additionalProperties:
+                    type: integer
+                  type: object
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+      security:
+      - BearerAuth: []
+      summary: Jumlah notifikasi belum dibaca
+      tags:
+      - notifications
+  /rooms:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/model.WebResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/model.Room'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+      security:
+      - BearerAuth: []
+      summary: Daftar ruang aktif
+      tags:
+      - rooms
+    post:
+      parameters:
+      - description: Data ruang
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.RoomRequest'
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/model.WebResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.Room'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+      security:
+      - BearerAuth: []
+      summary: Tambah ruang
+      tags:
+      - rooms
+  /rooms/{id}:
+    delete:
+      parameters:
+      - description: ID ruang
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: Ruang berhasil dinonaktifkan
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+      security:
+      - BearerAuth: []
+      summary: Nonaktifkan ruang
+      tags:
+      - rooms
+    get:
+      parameters:
+      - description: ID ruang
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/model.WebResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.Room'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+      security:
+      - BearerAuth: []
+      summary: Detail ruang
+      tags:
+      - rooms
+    put:
+      parameters:
+      - description: ID ruang
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Data ruang
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.RoomRequest'
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/model.WebResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.Room'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+      security:
+      - BearerAuth: []
+      summary: Ubah ruang
+      tags:
+      - rooms
+  /rooms/{id}/availability:
+    get:
+      parameters:
+      - description: ID ruang
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Tanggal dengan format YYYY-MM-DD
+        in: query
+        name: date
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/model.WebResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.Availability'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+      security:
+      - BearerAuth: []
+      summary: Ketersediaan ruang pada satu tanggal
+      tags:
+      - rooms
+  /users/{id}/role:
+    patch:
+      parameters:
+      - description: ID user
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Role baru
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.ChangeRoleRequest'
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/model.WebResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.User'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+      security:
+      - BearerAuth: []
+      summary: Ubah role user
+      tags:
+      - users
+securityDefinitions:
+  BearerAuth:
+    description: 'Access token dengan format: Bearer <token>'
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
