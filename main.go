@@ -9,6 +9,7 @@ import (
 	"time"
 	_ "time/tzdata"
 
+	_ "ruangku-backend/apidocs"
 	"ruangku-backend/app/repository"
 	"ruangku-backend/app/service"
 	"ruangku-backend/config"
