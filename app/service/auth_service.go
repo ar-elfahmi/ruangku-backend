@@ -36,6 +36,16 @@ func NewAuthService(u repository.UserRepository, jwt *helper.JWTManager, opts ..
 	return s
 }
 
+// Register mendaftarkan user baru dengan role peminjam.
+//
+//	@Summary		Registrasi user
+//	@Tags			auth
+//	@Param			request	body	model.RegisterRequest	true	"Data registrasi"
+//	@Success		201		{object}	model.WebResponse{data=model.User}
+//	@Failure		400		{object}	model.WebResponse
+//	@Failure		409		{object}	model.WebResponse
+//	@Failure		422		{object}	model.WebResponse
+//	@Router			/auth/register [post]
 func (s *authService) Register(c *fiber.Ctx) error {
 	ctx, cancel := helper.RequestContext(c)
 	defer cancel()
@@ -70,6 +80,16 @@ func (s *authService) Register(c *fiber.Ctx) error {
 	return helper.Created(c, "registrasi berhasil", created, "")
 }
 
+// Login memeriksa kredensial dan menerbitkan access token beserta refresh token.
+//
+//	@Summary		Login
+//	@Tags			auth
+//	@Param			request	body	model.LoginRequest	true	"Email dan password"
+//	@Success		200		{object}	model.WebResponse{data=model.TokenResponse}
+//	@Failure		400		{object}	model.WebResponse
+//	@Failure		401		{object}	model.WebResponse
+//	@Failure		422		{object}	model.WebResponse
+//	@Router			/auth/login [post]
 func (s *authService) Login(c *fiber.Ctx) error {
 	ctx, cancel := helper.RequestContext(c)
 	defer cancel()
