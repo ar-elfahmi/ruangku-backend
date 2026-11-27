@@ -20,14 +20,10 @@ import (
 // tanpa entri tambahan. Route dibaca dari aplikasi Fiber yang benar-benar
 // didaftarkan; handler tidak pernah dipanggil sehingga service cukup berupa
 // stub. route/route.go tidak diubah.
-//
-// Anotasi GET /health ditambahkan oleh A karena route/route.go milik A. Selama
-// anotasi itu belum ada, endpoint tersebut dikecualikan dari perbandingan.
 const (
 	swaggerFile   = "apidocs/swagger.json"
 	apiBasePath   = "/api/v1"
 	totalAPIRoute = 24
-	healthRoute   = "GET /health"
 )
 
 // Stub service: method value-nya cukup untuk registrasi route, dan akan panic
@@ -54,10 +50,6 @@ func TestSwaggerCoversEveryRoute(t *testing.T) {
 		t.Fatalf("route terdaftar = %d, want %d; perbarui test ini bila route memang bertambah", got, totalAPIRoute)
 	}
 
-	// /health milik A: dibandingkan hanya bila anotasinya sudah ada.
-	delete(actual, healthRoute)
-	delete(documented, healthRoute)
-
 	missing, extra := diffRoutes(actual, documented)
 	if len(missing) > 0 {
 		t.Errorf("route belum dianotasi di %s:\n  %s", swaggerFile, strings.Join(missing, "\n  "))
@@ -65,8 +57,8 @@ func TestSwaggerCoversEveryRoute(t *testing.T) {
 	if len(extra) > 0 {
 		t.Errorf("entri Swagger tidak punya route nyata:\n  %s", strings.Join(extra, "\n  "))
 	}
-	if len(missing) == 0 && len(extra) == 0 && len(documented) != totalAPIRoute-1 {
-		t.Errorf("operasi Swagger = %d, want %d", len(documented), totalAPIRoute-1)
+	if len(missing) == 0 && len(extra) == 0 && len(documented) != totalAPIRoute {
+		t.Errorf("operasi Swagger = %d, want %d", len(documented), totalAPIRoute)
 	}
 }
 

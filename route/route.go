@@ -2,6 +2,7 @@ package route
 
 import (
 	"github.com/gofiber/fiber/v2"
+	swagger "github.com/gofiber/swagger"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"ruangku-backend/app/model"
@@ -29,6 +30,8 @@ func Register(app *fiber.App, d Dependencies) {
 	api := app.Group("/api/v1")
 
 	api.Get("/health", health(d.Pool))
+	// UI dokumentasi; isinya datang dari paket apidocs (import kosong di main.go).
+	api.Get("/swagger/*", swagger.HandlerDefault)
 
 	registerAuth(api, d)
 	registerRooms(api, d)
@@ -87,6 +90,13 @@ func registerNotifications(api fiber.Router, d Dependencies) {
 	notifications.Patch("/:id/read", d.Notification.MarkRead)
 }
 
+// health memeriksa koneksi database.
+//
+//	@Summary	Cek kesehatan service
+//	@Tags		system
+//	@Success	200	{object}	model.WebResponse{data=map[string]string}
+//	@Failure	503	{object}	model.WebResponse
+//	@Router		/health [get]
 func health(pool *pgxpool.Pool) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		ctx, cancel := helper.RequestContext(c)
