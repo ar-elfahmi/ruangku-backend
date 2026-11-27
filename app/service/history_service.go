@@ -20,6 +20,16 @@ func NewHistoryService(h repository.HistoryRepository) HistoryService {
 
 // Mine menangani GET /api/v1/bookings/mine?status=
 // Menampilkan riwayat peminjaman milik peminjam yang sedang login.
+//
+//	@Summary		Riwayat peminjaman milik peminjam
+//	@Tags			bookings
+//	@Security		BearerAuth
+//	@Param			status	query	string	false	"Filter status: pending, approved, rejected, cancelled"
+//	@Success		200		{object}	model.WebResponse{data=[]model.Booking}
+//	@Failure		400		{object}	model.WebResponse
+//	@Failure		401		{object}	model.WebResponse
+//	@Failure		403		{object}	model.WebResponse
+//	@Router			/bookings/mine [get]
 func (s *historyService) Mine(c *fiber.Ctx) error {
 	ctx, cancel := helper.RequestContext(c)
 	defer cancel()
