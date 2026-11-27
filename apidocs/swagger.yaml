@@ -703,6 +703,27 @@ paths:
       summary: Riwayat peminjaman milik peminjam
       tags:
       - bookings
+  /health:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/model.WebResponse'
+            - properties:
+                data:
+                  additionalProperties:
+                    type: string
+                  type: object
+              type: object
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/model.WebResponse'
+      summary: Cek kesehatan service
+      tags:
+      - system
   /notifications:
     get:
       parameters:
