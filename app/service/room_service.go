@@ -76,6 +76,18 @@ func (s *roomService) Get(c *fiber.Ctx) error {
 
 // Create menambah ruang baru. Peran admin sudah dicek middleware di route;
 // kode dinormalisasi agar "lab-01" dan "LAB-01" terdeteksi sebagai duplikat.
+//
+//	@Summary		Tambah ruang
+//	@Tags			rooms
+//	@Security		BearerAuth
+//	@Param			request	body	model.RoomRequest	true	"Data ruang"
+//	@Success		201		{object}	model.WebResponse{data=model.Room}
+//	@Failure		400		{object}	model.WebResponse
+//	@Failure		401		{object}	model.WebResponse
+//	@Failure		403		{object}	model.WebResponse
+//	@Failure		409		{object}	model.WebResponse
+//	@Failure		422		{object}	model.WebResponse
+//	@Router			/rooms [post]
 func (s *roomService) Create(c *fiber.Ctx) error {
 	ctx, cancel := helper.RequestContext(c)
 	defer cancel()
@@ -104,6 +116,20 @@ func (s *roomService) Create(c *fiber.Ctx) error {
 }
 
 // Update mengganti seluruh field ruang (PUT: semua field wajib diisi).
+//
+//	@Summary		Ubah ruang
+//	@Tags			rooms
+//	@Security		BearerAuth
+//	@Param			id		path	int					true	"ID ruang"
+//	@Param			request	body	model.RoomRequest	true	"Data ruang"
+//	@Success		200		{object}	model.WebResponse{data=model.Room}
+//	@Failure		400		{object}	model.WebResponse
+//	@Failure		401		{object}	model.WebResponse
+//	@Failure		403		{object}	model.WebResponse
+//	@Failure		404		{object}	model.WebResponse
+//	@Failure		409		{object}	model.WebResponse
+//	@Failure		422		{object}	model.WebResponse
+//	@Router			/rooms/{id} [put]
 func (s *roomService) Update(c *fiber.Ctx) error {
 	ctx, cancel := helper.RequestContext(c)
 	defer cancel()
@@ -139,6 +165,17 @@ func (s *roomService) Update(c *fiber.Ctx) error {
 }
 
 // Delete menonaktifkan ruang (soft delete) agar riwayat booking tetap terbaca.
+//
+//	@Summary		Nonaktifkan ruang
+//	@Tags			rooms
+//	@Security		BearerAuth
+//	@Param			id	path	int	true	"ID ruang"
+//	@Success		204	"Ruang berhasil dinonaktifkan"
+//	@Failure		400	{object}	model.WebResponse
+//	@Failure		401	{object}	model.WebResponse
+//	@Failure		403	{object}	model.WebResponse
+//	@Failure		404	{object}	model.WebResponse
+//	@Router			/rooms/{id} [delete]
 func (s *roomService) Delete(c *fiber.Ctx) error {
 	ctx, cancel := helper.RequestContext(c)
 	defer cancel()
